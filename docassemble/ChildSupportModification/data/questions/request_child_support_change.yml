@@ -12,11 +12,13 @@ include:
 ---
 objects:
   - users: ALPeopleList.using(there_are_any=True)
-  - users[i].lawyer: ALIndividual
+  - users[i].employer: ALIndividual
   - users[i].jail_delivery_address: ALAddress
   - other_parties: ALPeopleList.using(there_are_any=True)
+  - other_parties[i].employer: ALIndividual
   - other_parties[i].lawyer: ALIndividual
   - other_parties[i].jail_delivery_address: ALAddress
+  - children: ALPeopleList.using(object_type=ALIndividual, there_are_any=True, complete_attribute='complete')
   - delivery_parties: ALPeopleList.using(there_are_any=True)
   - delivery_parties[i].lawyer: ALIndividual
   - court_list: ALCourtLoader.using(file_name='docassemble.ILAO:data/sources/il_courts.xlsx')
@@ -40,8 +42,10 @@ code: |
 # Road map
 sections:
   - section_intro: Start
-  - section_current_order: Current support order
-  - section_motion: Motion details
+  - section_case: Case details
+  - section_child_support: Child support
+  - section_about_children: About your children
+  - section_about_other_parent: About the other parent
   - section_delivery: Notice and delivery
   - section_about_you: About you
   - section_download: Download  
@@ -61,17 +65,13 @@ code: |
     must_be_judicial_order
   
   set_progress(15)
-  nav.set_section('section_current_order')
+  nav.set_section('section_case')
   users[0].name.first
   other_parties[0].name.first
   case_type
-  party_label
-  set_progress(20)
-    
+  party_label    
   #if has_third_parties:
   #  third_parties.gather()
-
-  set_progress(25)
   #if in_re_check == True:
   #  in_re_label
   #trial_court_index
@@ -79,33 +79,39 @@ code: |
     cook_district
   courthouse_info
   case_number
-  
-  set_progress(30)
+
+  set_progress(25)
+  nav.set_section('section_child_support')
   order_date
   payor_parent
   support_amount
-  has_arrears
-  change_reason
+  is_support_current
+  user_income_change
+  support_amount_change
 
+  set_progress(45)
+  nav.set_section('section_about_children')
+  children.gather()
 
-  
-  nav.set_section('section_motion')
-  if motion_type == "Something else":
-    motion_summary
-    motion_body
-    debug_motion_body
-    preview_motion
-    
   set_progress(60)
+  nav.set_section('section_about_other_parent')
+  if knows_other_parent_address:
+    other_parties[0].address.address
+  other_parties[0].phone_number
+  other_parties[0].birthdate
+  if other_parties[0].emp_status == "Yes":
+    other_parties[0].employer.name.text  
+  
+  set_progress(75)
   nav.set_section('section_delivery')
-  if anyone_opposing == True or users.number() > 1:
+  if 1==1:
 
     notice_intro
     if has_court_date:
       hearing_date
     attend_court
 
-    set_progress(70)
+    set_progress(80)
     delivery_intro
     for person in delivery_parties:
       if person.is_represented:
@@ -352,6 +358,312 @@ code: |
   if party_label == 'respondent':
     opposing_label = 'petitioner'
 ---
+id: order date
+question: |
+  When was the child support entered by the court?
+subquestion: |
+  The date should appear on the support order near the judge's signature.
+fields:
+  - Order date: order_date
+    datatype: ThreePartsDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+---
+id: payor parent
+question: |
+  Who was ordered to pay child support in the ${ order_date } order?
+fields:
+  - no label: payor_parent
+    datatype: radio
+    choices:
+      - Me: Me
+      - "${other_parties[0].name_full()}": other
+---
+id: support order details
+question: |
+  Child support amount and frequency
+fields:
+  - How much were you ordered to pay?: support_amount
+    datatype: currency
+    min: 1    
+    show if:
+      code: |
+        payor_parent == "Me"
+  - How much was ${ other_parties[0].name_full() } ordered to pay?: support_amount
+    datatype: currency
+    min: 1
+    show if:
+      code: |
+        payor_parent == "other"
+  - How often was the payment to be made?: support_frequency
+    input type: radio
+    choices:
+      - Once a week: weekly
+      - Once every two weeks: bi-weekly
+      - Twice every month: bi-monthly
+      - Once every month: monthly
+      - Once every year: yearly
+---
+id: is payor current
+question: |
+  % if payor_parent == "Me":
+  Are you up to date on support payments?
+  % else:
+  Is ${ other_parties[0].name_full() } up to date on support payments?
+  % endif
+subquestion: |
+  Select **No** if payments have not been made according to the schedule in the child support order.
+
+  If child support is overdue, you can enter the amount below after selecting **No**. Overdue child support is sometimes called "arrears." 
+fields:
+  - no label: is_support_current
+    datatype: yesnoradio
+  - How much child support is overdue?: arrears_amount
+    datatype: currency
+    min: 1
+    show if:
+      variable: is_support_current
+      is: False
+---
+id: change reason
+question: |
+  Why do you want to change the amount of child support?
+subquestion: |
+  UPDATE - explain substantial change in circumstances
+
+  Check all that apply and add information as needed.
+fields:
+  - My income has changed.: user_income_change
+    datatype: yesnowide
+  - How has your income changed?: user_income_change_increase
+    input type: radio
+    choices:
+      - "My income has **increased** since the ${ order_date } order.": True
+      - "My income has **decreased** since the ${ order_date } order.": False
+    show if:
+      variable: user_income_change
+      is: True
+  - "${ other_parties[0].name_full() }'s income has changed.": other_parent_income_change
+    datatype: yesnowide
+  - How has their income changed?: other_parent_income_change_increase
+    input type: radio
+    choices:
+      - "Their income has **increased** since the ${ order_date } order.": True
+      - "Their income has **decreased** since the ${ order_date } order.": False
+    show if:
+      variable: other_parent_income_change
+      is: True
+  - "There has been a change in the allocation of parental responsibilities (custody).": custody_change
+    datatype: yesnowide
+  - "The supporting parent's ability to maintain health insurance coverage has changed.": health_insurance_change
+    datatype: yesnowide
+  - Who should maintain health insurance for the children?: health_insurance_parent
+    input type: radio
+    help: |
+      The court can order that the cost of health insurance is shared by both parents.
+    choices:
+      - Me: Me
+      - "${other_parties[0].name_full()}": other
+    show if:
+      variable: health_insurance_change
+      is: True    
+  - "One or more of the children are now over the age of 18 and graduated from high school.": graduation_change
+    datatype: yesnowide
+    help: |
+      You can select this even if the high school graduation date is coming up.
+  - High school graduation date: graduation_date
+    datatype: ThreePartsDate
+    show if:
+      variable: graduation_change
+      is: True
+  - "One or more of the children have become emancipated.": emancipation_change
+    datatype: yesnowide
+  - Emancipation date: emancipation_date
+    datatype: ThreePartsDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+    show if:
+      variable: emancipation_change
+      is: True
+  - "There is another change I will explain.": other_change
+    datatype: yesnowide
+  - note: |
+      How have the needs of the children, parents, or circumstances changed so that child support payment should be adjusted?
+    show if:
+      variable: other_change
+      is: True
+  - Explain the substantial change in circumstances: other_change_text
+    datatype: area
+    rows: 8
+    maxlength: 250
+    show if:
+      variable: other_change
+      is: True
+  - note: |
+      The form has room for **200 characters** including spaces.
+    show if:
+      variable: other_change
+      is: True
+---
+id: increase or decrease support
+question: |
+  How do you want the child support payment amount to change?
+subquestion: |
+  If you only want a change to who provides health insurance for the children, select **No change to support amount**.
+fields:
+  - no label: support_amount_change
+    input type: radio
+    choices:
+      - "I want the child support payment amount to **increase**.": increase
+      - "I want the child support payment amount to **decrease**.": decrease
+      - "No change to support amount.": none
+
+---
+code: |
+  children[i].name.first
+  children[i].birthdate
+  children[i].complete = True
+---
+sets:
+  - children[0].name.first
+  - children[0].name.middle
+  - children[0].name.last
+  - children[0].name.suffix
+id: name of first child
+question: |
+  Who is your child with ${other_parties[0].name_full()}?
+subquestion: |
+  You only need to include children that are included in the ${ order_date } order.
+fields:
+  - code: |
+      children[0].name_fields()
+---
+id: names of other children
+sets:
+  - children[i].name.first
+  - children[i].name.middle
+  - children[i].name.last
+  - children[i].name.suffix
+question: |
+  Who is your ${ ordinal(i) } child with ${other_parties[0].name_full()}?
+subquestion: |
+  You only need to include children that are included in the ${ order_date } order.
+fields:
+  - code: |
+      children[i].name_fields()
+---
+id: any other children with respondent
+question: |
+  Do you have another child with ${other_parties[0].name_full()}?
+subquestion: |
+  So far you have told us about ${children.full_names()}.
+
+  The forms have room for up to 6 children. You only need to include children that are included in the ${ order_date } order.
+fields:
+  - "Anyone else?": children.there_is_another
+    datatype: yesnoradio
+---
+id: child age
+question: |
+  When was ${children[i].name_full()} born?
+fields:
+  - Birth date: children[i].birthdate
+    datatype: BirthDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+---
+code: |
+  if children.number_gathered() >= 7:
+    children.there_is_another = False
+---
+id: other parent birthdate
+question: |
+  When was ${other_parties[0].name_full()} born?
+fields:
+  - Date of birth: other_parties[0].birthdate
+    datatype: BirthDate
+    alMax: ${ order_date.format("yyyy-MM-dd") }    
+---
+id: know other parent address
+question: |
+  Do you know where ${other_parties[0].name_full()} lives?
+fields:
+  - no label: knows_other_parent_address
+    datatype: yesnoradio
+---
+id: get other parent address
+question: |
+  What is ${other_parties[0].name_full()}'s home address?
+fields:
+  - Street address: other_parties[0].address.address
+    address autocomplete: True
+  - Address line 2: other_parties[0].address.unit
+    required: False
+  - City: other_parties[0].address.city
+  - State: other_parties[0].address.state
+    code: |
+      states_list()
+    default: IL      
+  - ZIP code: other_parties[0].address.zip
+  - County: other_parties[0].address.county
+---
+id: other parent contact information
+question: |
+  What is ${other_parties[0].name_full()}'s phone number?
+subquestion: |
+  If you do not know, leave it blank.
+fields:
+  - Phone: other_parties[0].phone_number
+    datatype: al_international_phone
+    required: False
+---
+id: other parent employment status
+question: |
+  Is ${other_parties[0].name_full()} currently employed?
+fields:
+  - no label: other_parties[0].emp_status
+    input type: radio
+    choices:
+      - Yes: Yes
+      - No: No
+      - I don't know.: idk
+---
+id: other parent employer info
+question: |
+  Tell us about ${other_parties[0].name_full()}'s job
+subquestion: |
+  If they have more than one job, list the "main" one. This would be the job where they usually work more hours, make more money, and receive more employee benefits.   
+fields:
+  - Employer's name: other_parties[0].employer.name.text
+    maxlength: 40
+  - Street address: other_parties[0].employer.address.address
+    address autocomplete: True
+  - Address line 2: other_parties[0].employer.address.unit
+    required: False
+  - City: other_parties[0].employer.address.city
+  - State: other_parties[0].employer.address.state
+    code: |
+      states_list()
+    default: IL
+  - ZIP code: other_parties[0].employer.address.zip
+  - Phone number: other_parties[0].employer.phone_number
+    datatype: al_international_phone
+    required: False
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+---
 id: any third parties
 question: |
   Are there any third parties in this court case?
@@ -464,14 +776,23 @@ subquestion: |
 fields:
   - Case number: case_number
     maxlength: 19
+  - "IV-D case number (optional)": ivd_case_number
+    maxlength: 25
+    required: False
+  - Calendar (optional): calendar_number
+    maxlength: 5
+    required: False
+    help: |
+      Some Cook County cases have a "calendar" as part of how the case is identified. If your support order has this, it should be located on the first page of the order. 
+    show if: 
+      code: |
+        trial_court_index == -1    
 ---
 template: case_number_help
 subject: |
   **Learn about case numbers**
 content: |  
-  The case number should be on your court papers. Look at the Complaint or Petition, or the Summons if you received one. It is usually in the top-right part of the first page.
-  
-  If you started the case, the court clerk should have given you the case number.
+  The case number should be on your court papers. It is usually in the top-right part of the first page.
   
   In this example, the case number is **2022 EXAMPLE 123**.
   
