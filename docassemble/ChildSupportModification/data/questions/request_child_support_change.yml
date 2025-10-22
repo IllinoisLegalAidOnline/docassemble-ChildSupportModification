@@ -40,7 +40,7 @@ code: |
 # Road map
 sections:
   - section_intro: Start
-  - section_case_info: Case info
+  - section_current_order: Current support order
   - section_motion: Motion details
   - section_delivery: Notice and delivery
   - section_about_you: About you
@@ -56,27 +56,24 @@ code: |
   set_progress(5)
   whats_next
   accept_terms
-  if existing_case == False:
-    must_be_existing_case
+  calculator
+  if order_type == "admin" or order_type == "idk":
+    must_be_judicial_order
   
   set_progress(15)
-  nav.set_section('section_case_info')
+  nav.set_section('section_current_order')
+  users[0].name.first
+  other_parties[0].name.first
+  case_type
   party_label
-  users.gather()
   set_progress(20)
     
-  if party_label == "plaintiff" or party_label == "petitioner":
-    if anyone_opposing == True:
-      other_parties.gather()
-  else:
-    anyone_opposing = True # find a way to move to separate code block
-    other_parties.gather()
-  if has_third_parties:
-    third_parties.gather()
+  #if has_third_parties:
+  #  third_parties.gather()
 
   set_progress(25)
-  if in_re_check == True:
-    in_re_label
+  #if in_re_check == True:
+  #  in_re_label
   #trial_court_index
   if trial_court_index == -1:
     cook_district
@@ -84,6 +81,14 @@ code: |
   case_number
   
   set_progress(30)
+  order_date
+  payor_parent
+  support_amount
+  has_arrears
+  change_reason
+
+
+  
   nav.set_section('section_motion')
   if motion_type == "Something else":
     motion_summary
@@ -167,9 +172,9 @@ question: |
 subquestion: |
   Welcome to Illinois Legal Aid Online's **Request to change child support** Easy Form.
 
-  A motion is a request to the judge to make the court or a party in the case do something. This program makes a *Motion* or a *Motion to Continue or Extend Time* based on what you need.
+  UPDATE
   
-  To learn more, read ILAO's article about [**preparing, filing, and presenting motions in court**](https://www.illinoislegalaid.org/node/32286).
+  UPDATE: To learn more, read ILAO's article about [**preparing, filing, and presenting motions in court**](https://www.illinoislegalaid.org/node/32286).
 field: sees_nav_bar
 ---
 id: instructions
@@ -177,6 +182,8 @@ continue button field: how_to_use
 question: |
   Instructions
 subquestion: |
+  UPDATE THIS PAGE
+  
   To use this program you will need to know: 
 
   * Your court case information, 
@@ -203,6 +210,8 @@ continue button field: whats_next
 question: |
   After you finish this program
 subquestion: |
+  UPDATE
+  
   After you download your *Motion*, you must file it with the court. This program **does not file** your *Motion* for you.
   
   You may need to schedule a court date for when the judge will hear your motion. The scheduling process is different depending on your location and case type. Check with your local circuit clerk for how to schedule a motion hearing.
@@ -211,40 +220,109 @@ subquestion: |
   
   To learn more, read the instructions you can download at the end of this program. 
 ---
-id: existing case
+id: calculator
+continue button field: calculator
 question: |
-  Are you filing a motion into an existing case?
+  Use the Illinois Child Support Calculator 
 subquestion: |
-  The court case must have already started, either by you or someone else.
-  
-  ${ collapse_template(motion_help) }  
-fields:
-  - no label: existing_case
-    datatype: yesnoradio  
----
-template: motion_help
-subject: |
-  **What if I am not sure?**
-content: |
-  Most motions are filed into cases that are still ongoing, but some motions are filed into cases after they are finished. For example, someone might file a Motion to Seal a Court Record into a case that is already over.
+  UPDATE THIS PAGE
 
+  Link to calculator
 ---
-id: must be existing case
-event: must_be_existing_case
+id: child support order type
+question: |
+  What kind of child support order do you want to change?
+subquestion: |
+  UPDATE
+
+  explain types and how to find out
+
+  Illinois Department of Healthcare and Family Services (IDHFS)
+fields:
+  - Child support order type: order_type
+    input type: radio
+    choices:
+      - Administrative (through IDHFS): admin
+      - Judicial (through court): judicial
+      - Registered support order: registered
+      - I'm not sure: idk
+  - When was the administrative support order registered in court?: registration_date
+    datatype: ThreePartsDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+    show if:
+      variable: order_type
+      is: "registered"
+---
+id: must be judicial order
+event: must_be_judicial_order
 question: |
   Sorry
 subquestion: |
-  You can only file a motion into a case that has already started.
+  UPDATE
+  
+  This program makes forms to change a **judicial** child support order. The support order must have been issued or registered by an Illinois court.
 
+  If you don't know, here's how to find out:...
+  
+  UPDATE - contact HFS to enforce admin. or enforce on own after you register. contact clerk.
+  
   Click **Back** if you made a mistake. Or you can talk with a lawyer to discuss your options. Use **[Get Legal Help](https://www.illinoislegalaid.org/get-legal-help)** to find free or low-cost legal services in your area.
 buttons:
   - Exit: exit
   - Restart: restart
+---
+id: user name
+sets:
+    - users[0].name.first
+question:  |
+  What is your name?
+fields:
+  - code: |
+      users[0].name_fields()
+---
+template: long_name_help
+subject: |
+  **What if I need more space?**
+content: |
+  If the person has a long name like "Jane Smith, Director of Housing," select **Business or organization**. You can then enter the full name and title.
+---
+sets:
+  - other_parties[0].name.first
+id: other party name
+question: |
+  What is the name of the other parent?
+subquestion: |
+  ${ collapse_template(long_name_help) }
+fields:
+  - code: |
+      other_parties[0].name_fields()
+---
+id: child support case type
+question: |
+  What kind of court document orders child support?
+subquestion: |
+  UPDATE
 
+  explain cases and how to find out
+fields:
+  - Child support order name: case_type
+    input type: radio
+    choices:
+      - Order for Support: support
+      - Order for Child Support: child_support
+      - Judgment for Dissolution of Marriage: marriage
+      - Judgment for Dissolution of Civil Union: civil_union
+      - Order of Parentage: parentage
+      - Other (explain below): other
+  - What is the name of the court document that orders child support?: other_case_type
+    maxlength: 60
+    show if:
+      variable: case_type
+      is: "other"
 ---
 id: party label
 question: |
-  What is your party label in the case?
+  What is your role in the case?
 subquestion: |
   ${ collapse_template(which_party) }  
 field: party_label
@@ -256,80 +334,13 @@ choices:
 ---
 template: which_party
 subject: |
-  **Learn more about party labels**
+  **Learn more about roles and party labels**
 content: |
   If you filed a new case, you are either the Plaintiff or the Petitioner.
 
   If someone filed the case against you, you are either the Defendant or the Respondent.
 
-  The other court forms in the case should help you figure it out. Look at the top (the caption) of the Complaint or Petition. That form should have a label by your name.
-
----
-id: any other users
-question: |
-  Are there any other ${ party_label }s this case?
-subquestion: |
-  ${ collapse_template(other_users_help) }  
-
-  % if len(users.elements) > 1:  
-  So far you have told us about ${ users.full_names() }.
-  % endif  
-fields:
-  - "Anyone else?": users.there_is_another
-    datatype: yesnoradio
----
-template: other_users_help
-subject: |
-  **Learn about other ${ party_label }s**
-content: |  
-  You said you are the ${ party_label.capitalize() }. The other people on your side of the case would be co-${ party_label}s.
-  
-  The other ${ party_label}s should be listed with you at the top of your court papers.
----
-id: any other party
-question: |
-  Are there ${ opposing_label }s in the case?
-subquestion: |
-  Certain kinds of cases do not have an opposing party, such as a Name Change or an Expungement case.
-fields:
-  - no label: anyone_opposing
-    datatype: yesnoradio
----
-id: user name
-sets:
-    - users[0].name.first
-    - users[0].name.last
-    - users[0].name.middle
-    - users[0].name.suffix
-question:  |
-  What is your name?
-fields:
-  - code: |
-      users[0].name_fields()
----
-depends on:
-  - user_started_case
-sets:
-  - users[i].name.first
-id: other users names
-question: |
-  % if al_form_type in ['starts_case','existing_case','appeal']:
-  What is the name of the ${ ordinal(i - 1 ) } co-${ party_label } in your case?
-  % else:
-  What is the name of the ${ ordinal(i - 1 ) } other person who is adding their name to
-  this form with you?
-  % endif
-subquestion: |
-  ${ collapse_template(long_name_help) }
-fields:
-  - code: |
-      users[i].name_fields(person_or_business='unsure')
----
-template: long_name_help
-subject: |
-  **What if I need more space?**
-content: |
-  If the person has a long name like "Jane Smith, Director of Housing," select **Business or organization**. You can then enter the full name and title.
+  The other court papers in the case should help you figure it out. Look at the top (the caption) of the Child Support Order. That form should have a label by your name.
 ---
 code: |
   if party_label == 'plaintiff':
@@ -340,45 +351,6 @@ code: |
     opposing_label = 'respondent'
   if party_label == 'respondent':
     opposing_label = 'petitioner'
----
-id: any other party
-question: |
-  Are there ${ opposing_label }s in the case?
-subquestion: |
-  Certain kinds of cases do not have an opposing party, such as a Name Change or an Expungement case.
-
-  ${ collapse_template(other_parties_help) }
-fields:
-  - no label: anyone_opposing
-    datatype: yesnoradio
----
-template: other_parties_help
-subject: |
-  **How do I know if there are ${ opposing_label }s?**
-content: |  
-  You said you are the ${ party_label.capitalize() }. The people on the other side of the case would be ${ opposing_label}s.
-
-  Look at the top of the other court papers. If there are ${ opposing_label}s, you should see the names of other people listed as ${ opposing_label}s.
----
-sets:
-  - other_parties[i].name.first
-id: other party name
-question: |
-  What is the name of the ${ ordinal(i) } ${ opposing_label }?
-subquestion: |
-  ${ collapse_template(long_name_help) }
-fields:
-  - code: |
-      other_parties[i].name_fields(person_or_business='unsure')
----
-id: any more other parties
-question: |
-  Are there any other ${ opposing_label }s in the case?
-subquestion: |  
-  So far you have told us about ${ other_parties.full_names() }.
-fields:
-  - "Anyone else?": other_parties.there_is_another
-    datatype: yesnoradio
 ---
 id: any third parties
 question: |
@@ -455,8 +427,10 @@ id: in re check
 question: |
  Does the court case have the words "**In re:**" in the name?
 subquestion: |
-  Look at the name of the case at the top of the court papers. "In re" is often used in probate, guardianship, and some family law cases. For example, a probate case regarding Jane Doe’s estate might be called "In re: Estate of Jane Doe."
+  Look at the name of the case at the top of the court papers. "In re" is used in some family law cases. For example, a divorce case might be called "In re: Marriage of Jane Doe and John Doe."
 
+  UPDATE
+  
   **Note:** If the court papers say "In re:" but also list the names of people in the case, you can select **No**. For example, if the case title is "In re: Marriage of Julia Smith and Tony Smith," the names you already entered will be put on your forms so you can select **No**.
 fields:
   - no label: in_re_check
@@ -818,8 +792,6 @@ choices:
   - Fifth Municipal District, 10220 S. 76th Avenue, Bridgeview: 19
   - Sixth Municipal District, 16501 South Kedzie Parkway, Markham: 20
   - Domestic Violence Court, 555 W. Harrison Street, Chicago: 21
-  - George N. Leighton Criminal Court Building, 2600 S. California Avenue, Chicago: 22
-  - Juvenile Center, 2245 West Ogden Avenue, Chicago: 23
 ---
 template: cook_district_help
 subject: |
@@ -916,16 +888,10 @@ content: |
 ---
 reconsider: True
 code: |
-  if anyone_opposing:
     if has_third_parties:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + third_parties + users[1:])
     else:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + users[1:])
-  else:
-    if has_third_parties:
-      delivery_parties = ALPeopleList("delivery_parties", elements = third_parties + users[1:])
-    else:
-      delivery_parties = ALPeopleList("delivery_parties", elements = users[1:])  
 ---
 id: delivery intro
 continue button field: delivery_intro
