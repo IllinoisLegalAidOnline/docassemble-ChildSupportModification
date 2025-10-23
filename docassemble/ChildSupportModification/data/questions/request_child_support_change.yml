@@ -14,7 +14,7 @@ objects:
   - users: ALPeopleList.using(there_are_any=True)
   - users[i].employer: ALIndividual
   - users[i].jail_delivery_address: ALAddress
-  - other_parties: ALPeopleList.using(there_are_any=True)
+  - other_parties: ALPeopleList.using(there_are_any=True, complete_attribute='complete')
   - other_parties[i].employer: ALIndividual
   - other_parties[i].lawyer: ALIndividual
   - other_parties[i].jail_delivery_address: ALAddress
@@ -22,9 +22,12 @@ objects:
   - delivery_parties: ALPeopleList.using(there_are_any=True)
   - delivery_parties[i].lawyer: ALIndividual
   - court_list: ALCourtLoader.using(file_name='docassemble.ILAO:data/sources/il_courts.xlsx')
-  - third_parties: ALPeopleList.using(there_are_any=True)
-  - third_parties[i].lawyer: ALIndividual
-  - third_parties[i].jail_delivery_address: ALAddress
+  - idhfs: ALPeopleList.using(there_are_any=True, complete_attribute='complete')
+  - idhfs[i].lawyer: ALIndividual
+  - idhfs[i].jail_delivery_address: ALAddress
+  - states_attorneys: ALPeopleList.using(there_are_any=True, complete_attribute='complete')
+  - states_attorneys[i].lawyer: ALIndividual
+  - states_attorneys[i].jail_delivery_address: ALAddress
 ---
 mandatory: True
 objects:
@@ -67,7 +70,7 @@ code: |
   set_progress(15)
   nav.set_section('section_case')
   users[0].name.first
-  other_parties[0].name.first
+  other_parties.gather()
   case_type
   party_label    
   #if has_third_parties:
@@ -100,41 +103,58 @@ code: |
   other_parties[0].phone_number
   other_parties[0].birthdate
   if other_parties[0].emp_status == "Yes":
-    other_parties[0].employer.name.text  
+    other_parties[0].employer.name.text
+
+  debug_motion_body
   
   set_progress(75)
   nav.set_section('section_delivery')
-  if 1==1:
-
-    notice_intro
-    if has_court_date:
-      hearing_date
-    attend_court
-
-    set_progress(80)
-    delivery_intro
-    for person in delivery_parties:
-      if person.is_represented:
-        person.lawyer.name.first
-      if person.knows_delivery_method:
-        person.email_delivery
-        person.delivery_date
+  notice_intro
+  if has_court_date:
+    hearing_date
+  attend_court
+  set_progress(80)
   
-    hand_delivery_info
+  if other_parties[0].idhfs_involved:
+    idhfs.gather()
+  if other_parties[0].asa_involved:
+    states_attorneys.gather()
 
+  delivery_intro
+  for person in delivery_parties:
+    if person.is_represented:
+      person.lawyer.name.first
+    if person.knows_delivery_method:
+      person.email_delivery
+      person.delivery_date
+
+  hand_delivery_info
+
+  if trial_court_index == -1:
+    previous_cook_case_type
+  
   courthouse_info
+  financial_affidavit_note
 
   set_progress(90)
   nav.set_section('section_about_you')
+  hide_address
   users[0].address.address
+  if hide_address:
+    if not hide_county:
+      users[0].residence_county
+  else:
+    users[0].residence_county  
   users[0].phone_number
+  users[0].birthdate
+  if users[0].emp_status == "Yes":
+    users[0].employer.name.text 
   e_signature
 
   set_progress(100)
   nav.set_section('section_download')
   forms_assembling
   snapshot_forms
-  docs_delivered()
   get_docs_screen
 ---
 code: |
@@ -149,8 +169,6 @@ code: |
     pass
 
   stuff_to_snapshot['zip'] = showifdef('users[0].address.zip')
-
-  stuff_to_snapshot['motion_type'] = showifdef('motion_type')
 
   stuff_to_snapshot['downloaded_forms'] = showifdef('forms_assembling')
   
@@ -248,9 +266,9 @@ fields:
   - Child support order type: order_type
     input type: radio
     choices:
-      - Administrative (through IDHFS): admin
+      - Administrative IV-D (through IDHFS): admin
       - Judicial (through court): judicial
-      - Registered support order: registered
+      - Registered IV-D support order: registered
       - I'm not sure: idk
   - When was the administrative support order registered in court?: registration_date
     datatype: ThreePartsDate
@@ -302,6 +320,14 @@ subquestion: |
 fields:
   - code: |
       other_parties[0].name_fields()
+---
+code: |
+  other_parties[i].name.first
+  other_parties[i].complete = True
+---
+code: |
+  if other_parties.number() == 1:
+    other_parties.there_is_another = False
 ---
 id: child support case type
 question: |
@@ -604,7 +630,7 @@ fields:
   - ZIP code: other_parties[0].address.zip
   - County: other_parties[0].address.county
 ---
-id: other parent contact information
+id: other parent phone number
 question: |
   What is ${other_parties[0].name_full()}'s phone number?
 subquestion: |
@@ -646,73 +672,187 @@ fields:
   - Phone number: other_parties[0].employer.phone_number
     datatype: al_international_phone
     required: False
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
----
-id: any third parties
+--- 
+id: hide address
 question: |
-  Are there any third parties in this court case?
+  Do you want to keep your address hidden?
 subquestion: |
-  A third party is not one of the **{original parties}** in a lawsuit. Third parties enter a court case because:
-
-  * They may be affected by the outcome of the case, or
-  * The judge appoints them to represent someone who may be affected by the case.
-
-  For example, in a divorce case that involves minor children, the judge may appoint a third party called a Guardian ad Litem (GAL) to represent the interests of the children.
-
-  **Note:** Most cases do not have third parties involved.
-
-  Since third parties can be affected by the outcome of the case, the law gives them the right to receive notice of things that are filed in the case.
+  You do not need to list where you are staying on your court papers if you are worried that sharing your address would put you or your household at risk. You can use a mailing address where you can receive court notices instead.
 fields:
-  - Any third parties in this case?: has_third_parties
+  - no label: hide_address
     datatype: yesnoradio
-terms:
-  - "original parties": |
-      The **original parties** in a lawsuit are the people or businesses who:
-      
-      * Started the case, such as the Plaintiffs or Petitioners, and
-      * The case is against, such as the Defendants or Respondents.   
 ---
-sets:
-  - third_parties[i].name.first
-id: third party names
+id: get user address
 question: |
-  % if i == 0:
-  What is the name of the third party in this case?
+  % if hide_address:
+  What is your mailing address?
   % else:
-  What is the name of the ${ ordinal(i) } third party in this case?
+  What is your home address?
   % endif
 subquestion: |
-  ${ collapse_template(long_name_help) }
+  % if hide_address:
+  **This address will appear on your court papers.** You may receive court notices and documents about your case at this address.
+  % else:
+  **This address will appear on your court papers.** If you do not want this, click **Back** to keep your address hidden.
+  % endif
 fields:
-  - code: |
-      third_parties[i].name_fields(person_or_business='unsure')
+  - Street address: users[0].address.address
+    address autocomplete: True
+  - Address line 2: users[0].address.unit
+    required: False
+  - City: users[0].address.city
+  - State: users[0].address.state
+    code: |
+      states_list()
+    default: IL      
+  - ZIP code: users[0].address.zip
 ---
-id: any other third parties
+id: hide residence county
 question: |
-  Is there another third party in this case?
+  Do you want to keep the county where you are living hidden?
 subquestion: |
-  % if len(other_parties.elements) >= 1:  
-  So far you have told us about ${third_parties.full_names()}.
-  % endif
+  The county where you live is important, even if you are hiding your address by using a mailing address on your court papers.
+
+  The judge needs to know the county where you live to be sure your divorce case is filed in the right place.
 fields:
-  - "Anyone else?": third_parties.there_is_another
+  - no label: hide_county
     datatype: yesnoradio
+---
+id: user residence county
+question: |
+  In which state and county do you currently live?
+subquestion: |
+  **This information will appear on your court papers.** If you want to keep this hidden because it would put you or your household at risk, **Edit** your answers and say you want to hide your address and county.
+
+  ${ collapse_template(county_lookup_help) }
+fields:
+  - State where you currently live: users[0].residence_state
+    code: |
+      states_list()
+    help: |
+      Choose a state first then enter the county.
+  - County where you currently live: users[0].residence_county
+    code: |
+      court_list._load_courts()["address_county"].unique()      
+    js hide if: |
+      val('users[0].residence_state') != "IL"
+  - County where you currently live: users[0].residence_county
+    maxlength: 25
+    js show if: |
+      val('users[0].residence_state') != "IL" && val('users[0].residence_state') != ""
+---
+id: user birthdate
+question: |
+  When were you born?
+fields:
+  - Date of birth: users[0].birthdate
+    datatype: BirthDate
+    alMax: ${ order_date.format("yyyy-MM-dd") }
+---
+id: user employment status
+question: |
+  Are you currently employed?
+fields:
+  - no label: users[0].emp_status
+    input type: radio
+    choices:
+      - Yes: Yes
+      - No: No
+
+---
+id: user employer info
+question: |
+  Tell us about your job
+subquestion: |
+  If you have more than one job, list the "main" one. This would be the job where you usually work more hours, make more money, and receive more employee benefits.   
+fields:
+  - Employer's name: users[0].employer.name.text
+    maxlength: 40
+  - Street address: users[0].employer.address.address
+    address autocomplete: True
+  - Address line 2: users[0].employer.address.unit
+    required: False
+  - City: users[0].employer.address.city
+  - State: users[0].employer.address.state
+    code: |
+      states_list()
+    default: IL
+  - ZIP code: users[0].employer.address.zip
+  - Phone number: users[0].employer.phone_number
+    datatype: al_international_phone
+    required: False
+---
+id: financial affidavit note
+continue button field: financial_affidavit_note
+question: |
+  Financial Affidavit may be required
+subquestion: |
+  Many courts in Illinois require that both parents complete a *Financial Affidavit* before changing child support.
+
+  You can use the [Financial affidavit Easy Form](https://www.illinoislegalaid.org/node/51311) to help fill out the form.
+---
+id: idhfs involvement
+question: |
+  Was IDHFS involved in an earlier adminsitrative child support order?
+subquestion: |
+  UPDATE
+fields:
+  - no label: other_parties[0].idhfs_involved
+    datatype: yesnoradio
+---
+id: states attorney involvement
+question: |
+  Was the State's Attorney's office involved in an child support order?
+subquestion: |
+  UPDATE
+fields:
+  - no label: other_parties[0].asa_involved
+    datatype: yesnoradio
+---
+code: |
+  idhfs[0].name.first = "the Illinois Department of Healthcare and Family Services"
+  idhfs[i].complete = True
+---
+code: |
+  if idhfs.number() == 1:
+    idhfs.there_is_another = False
+---
+code: |
+  states_attorneys[0].name.first = "the Illinois State's Attorney"
+  states_attorneys[i].complete = True
+---
+code: |
+  if states_attorneys.number() == 1:
+    states_attorneys.there_is_another = False
+---
+id: any previous cook cases
+question: |
+  Have you filed any divorce or parentage cases with ${other_parties[0].name_full()} in Cook County before?
+subquestion: |
+  This will help the court clerk in Cook County assign your case to the correct location. If you were involved in more than one, choose the most recent.
+fields:
+  - no label: previous_cook_case_type
+    datatype: radio
+    choices:
+      - I was in an earlier **divorce** case with ${other_parties[0].name_full()}.: divorce
+      - I was in an earlier **parentage** case with ${other_parties[0].name_full()} involving children we had together.: parentage
+      - No earlier divorce or parentage cases were filed in Cook County.: none
+  - Date case was filed: previous_cook_case_date
+    datatype: ThreePartsDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+    required: False
+    js show if: |
+      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
+  - Case number: previous_cook_case_number
+    maxlength: 24
+    required: False
+    js show if: |
+      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
+  - Name of judge: previous_cook_case_judge
+    maxlength: 45
+    required: False
+    js show if: |
+      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
 ---
 id: trial court county
 continue button field: case_county
@@ -798,139 +938,12 @@ content: |
   
   [FILE case_number_example.png, 100%, Summons form showing case number]
 ---  
-id: motion type
-question: |
-  Why are you filing a motion?
-fields: 
-  - no label: motion_type
-    datatype: radio
-    choices:
-      - I want to reschedule a court date that was already scheduled.: Reschedule a court date
-        help: |
-          Examples include:
-    
-          * You will need to miss a court date due to a family medical emergency.
-          * You need more time to find a **witness** that you need for your case.
-          * The **evidence** you need for your case won't be available on the scheduled court date.      
-      - I want to extend the deadline to do something.: Extend a deadline  
-        help: |
-          Examples include:
-    
-          * You need more time to file an Answer in your court case.
-          * You need more time to respond to something the other party filed in your case.      
-      - I want the judge to do something else in my court case.: Something else  
-        help: |
-          Examples include:
-          
-          * You want the judge to order the other party to answer your discovery requests, also called a **Motion to Compel Discovery**. 
-          * You want to change something you already filed in this case, also called a **Motion to Amend**.
-          * You want the judge to dismiss a case against you because it has no basis in law or fact, also called a **Motion to Dismiss**.
- 
----  
-id: motion title
-question: |
-  Motion title
-subquestion: |
-  In a few words, explain what you want the judge to do in this court case. The motion form has room for about **70 characters** including spaces.
-  
-  ${ collapse_template(motion_title_help) }
-
-fields:
-  - Motion to:: motion_summary
-    maxlength: 70
----    
-template: motion_title_help
-subject: |
-  **Can I see some examples?**
-content: |  
-  Examples include:
-  
-    * If you want the judge to order the other party to answer your discovery requests, you could ask to: Compel Discovery. 
-    * If you want to change something you already filed in this case, you could ask to: Amend the document.
-    * If you want the judge to dismiss a case against you because it has no basis in law or fact, you could ask to: Dismiss the case.
-
----
-id: motion body
-question: |
-  What do you want the judge to do?
-subquestion: |
-  Tips:  
-  
-  * Start each statement with a number,   
-  * Explain why the judge should agree with what you are asking. Be sure to include facts and laws, if known, that support your motion, and
-  * At the end, clearly say what you want the judge to do in your court case.
-  
-  ${ collapse_template(motion_body_help) }
-  
-  The motion has room for about **2,250 characters** including spaces. If you need more room to explain, you can add a second page. You can preview it on the next screen.
-fields:
-  - no label: motion_body
-    input type: area
-    rows: 25
-    maxlength: 2250
----    
-template: motion_body_help
-subject: |
-  **Can I see an example?**
-content: |  
-  Let's say you want the judge to force, or compel, the other party in this case to respond to your discovery requests. You could write something like this:
-  
-    1. On January 10, 2023, I sent the Plaintiff, James Jones, a Request for Documents. 
-    2. I did not receive documents from the Plaintiff. On March 4, 2023, I asked Mr. James Jones to respond to the Request for Documents.
-    3. As of March 23, 2023, I still did not get a response from the Plaintiff.
-    4. I want the court to compel Plaintiff James Jones to respond to the Request for Documents by April 15, 2023.
----
-id: preview motion
-continue button field: preview_motion
-question: |
-  Motion preview
-subquestion: |
-  Click the below image to preview your Motion.
-  
-  If this looks good, click **Next**.
-  
-  If you want to make changes, click **Back** or go to the [**Motion details**](${ url_action('section_motion') }) section.
-  
-  If you want to add another page, you can enter more text.
-  
-  **Note: this is not a complete form.** Finish the program to get all your forms.
-
-  ${ motion_attachment.as_pdf(key='preview') }
----
-id: add additional motion page
-question: |
-  Do you want to add a second page to your motion?
-subquestion: |
-  You will be able to preview the Motion during the program and at the end.
-fields:
-  - no label: motion_additional_page
-    datatype: yesnoradio
----
-id: additional motion body
-question: |
-  More motion text
-subquestion: |
-  Enter the second page of your motion.
-
-  Tips:  
-  
-  * Start each statement with a number,   
-  * Explain why the judge should agree with what you are asking. Be sure to include facts and laws, if known, that support your motion, and
-  * At the end, clearly say what you want the judge to do in your court case.
-  
-  ${ collapse_template(motion_body_help) }
-
-  The additional motion page has room for about **4,500 characters** including spaces. You can preview both pages of the motion on the next screen.
-fields:
-  - no label: additional_motion_body
-    input type: area
-    rows: 30
-    maxlength: 4500
----
 depends on:
   - users[0].name
 code: |
-  motion_body = "Vacate the default judgment in this case, pursuant to 735 ILCS 5/2-1301. In support of this motion, I state as follows: \n \n"
+  motion_body = "Modify Child Support - UPDATE::::, pursuant to 735 ILCS 5/2-1301. In support of this motion, I state as follows: \n \n"
+  additional_motion_body = "4. I filed this motion as soon as possible after learning of the default.\n \n"
+
 #
 #  motion_body += "1. This motion is filed within 30 days of the default judgment of " + judgment_date + ".\n \n"
 #
@@ -1017,49 +1030,27 @@ content: |
 ---
 id: e-signature
 question: |
-  % if motion_type == "Something else":
   Do you want to add your e-signature to your ${ form_name }?
-  % else:
-  Do you want to add your e-signature to your Motion to Continue or Extend Time?
-  % endif
 subquestion: |
   This program can put “**/s/ ${users[0].name_full()}**” where you would sign your name. The court will accept this as your signature.
 
   If you do not add your **{e-signature}** now, you must sign your paper forms before you file and deliver them.
 
-  % if motion_type == "Something else":
   <div class="alert alert-info ilao-info" role="alert">
     <h6 class="alert-heading">What it means to sign your forms</h6>
-    <p>By signing the <i>Motion</i> and <i>Notice of Court Date for Motion</i> forms, you are certifying that:</p>
+    <p>By signing the <i>Motion to Modify Child Support</i> and Proof of Delivery section of your forms, you are certifying that:</p>
+    <p><ul>
+      <li>Everything on the forms is true and correct, or you have been informed or believe it to be true and correct, and</li>
+      <li>You understand that making a false statement on the forms is perjury and has penalties provided by law.</li>    </ul></p>
+  <p>See the <a href="https://www.ilga.gov/legislation/ilcs/documents/073500050k1-109.htm"><b>Illinois Code of Civil Procedure, 735 ILCS 5/1-109</b></a> for more information.</p>
+    <p>By signing the <i>Notice of Court Date for Motion</i> forms, you are certifying that:</p>
     <p><ul>
       <li>You read the document,</li>
       <li>You have been informed and believe it is true and correct, and</li>
       <li>You are not filing it to cause delay or for another bad reason.</li>
     </ul></p>
     <p>See the <a href="https://ilcourtsaudio.blob.core.windows.net/antilles-resources/resources/9ce1fce9-895f-463e-b87d-f9b7631f8fde/Rule%20137.pdf"><b>Illinois Supreme Court Rule 137</b></a> for more information.</p>
-    <p>By signing the and Proof of Delivery section of your forms, you are certifying that:</p>
-    <p><ul>
-      <li>Everything on the forms is true and correct, or you have been informed or believe it to be true and correct, and</li>
-      <li>You understand that making a false statement on the forms is perjury and has penalties provided by law.</li>    </ul></p>
-  <p>See the <a href="https://www.ilga.gov/legislation/ilcs/documents/073500050k1-109.htm"><b>Code of Civil Procedure, 735 ILCS 5/1-109</b></a> for more information.</p>
   </div>
-  % else:
-  <div class="alert alert-info ilao-info" role="alert">
-    <h6 class="alert-heading">What it means to sign your forms</h6>
-    <p>By signing the <i>Motion to Continue or Extend Time</i> and <i>Notice of Court Date for Motion</i> forms, you are certifying that:</p>
-    <p><ul>
-      <li>You read the document,</li>
-      <li>You have been informed and believe it is true and correct, and</li>
-      <li>You are not filing it to cause delay or for another bad reason.</li>
-    </ul></p>
-    <p>See the <a href="https://ilcourtsaudio.blob.core.windows.net/antilles-resources/resources/9ce1fce9-895f-463e-b87d-f9b7631f8fde/Rule%20137.pdf"><b>Illinois Supreme Court Rule 137</b></a> for more information.</p>
-    <p>By signing the and Proof of Delivery section of your forms, you are certifying that:</p>
-    <p><ul>
-      <li>Everything on the forms is true and correct, or you have been informed or believe it to be true and correct, and</li>
-      <li>You understand that making a false statement on the forms is perjury and has penalties provided by law.</li>    </ul></p>
-  <p>See the <a href="https://www.ilga.gov/legislation/ilcs/documents/073500050k1-109.htm"><b>Code of Civil Procedure, 735 ILCS 5/1-109</b></a> for more information.</p>  
-  </div>
-  % endif
 fields:
   - "Add e-signature?": e_signature
     datatype: yesnoradio
@@ -1070,13 +1061,11 @@ terms:
 id: notice intro
 continue button field: notice_intro
 question: |
-  Let the other parties in your case know about your motion
+  Let the other parent know about your motion
 subquestion: |
-  These are the other parties in this case: ${comma_and_list(delivery_parties.full_names())}.
+  You must let them know about your motion and when you will present it to the judge. If they have a lawyer, you must let their lawyer know.
 
-  You must let them know about your motion and when you will present it to the judge.
-
-  If someone in the case has a lawyer, you must let their lawyer know.
+  If the Illinois Department of Healthcare and Family Services (IDHFS) was involved in an earlier administrative support order, you must notify them. Also, if the State's Attorney's office was involved in the earlier support order, they must be notified.
 
   **Note:** You must deliver your forms before the court date when you will present your motion to the judge.
 ---
@@ -1209,15 +1198,22 @@ content: |
 ---
 reconsider: True
 code: |
-    if has_third_parties:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + third_parties + users[1:])
+  if other_parties[0].idhfs_involved:
+    if other_parties[0].asa_involved:
+      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs + states_attorneys)
     else:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + users[1:])
+      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs)  
+  else:
+    if other_parties[0].asa_involved:
+      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + states_attorneys)
+    else:
+      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties)
+
 ---
 id: delivery intro
 continue button field: delivery_intro
 question: |
-  Send your ${ form_name } to all other parties
+  Send your Motion to Modify Child Support to all other parties
 subquestion: |
   These are the other parties in this case: ${comma_and_list(delivery_parties.full_names())}.
 
@@ -1230,7 +1226,7 @@ subquestion: |
 id: has lawyer
 generic object: ALIndividual
 question: |
-  Does ${ x.name_full() } have a lawyer in this case?
+  Does ${ x.name_full() } have a lawyer listed on the support order?
 fields:
   - no label: x.is_represented
     datatype: radio
@@ -1528,22 +1524,6 @@ content: |
   
   [Illinois Legal Aid Online](https://www.illinoislegalaid.org)
 ---
-sets: docs_list
-code: |
-  def docs_delivered():
-    docs_list = []
-    
-    if motion_type == "Something else":
-      docs_list.append("Motion")
-    else:
-      docs_list.append("Motion to Continue or Extend Time")
-      if motion_type == "Reschedule a court date" and continue_reason_type != "Other":
-        docs_list.append("Statement of Missing Evidence or Witness")        
-    
-    docs_list.append("Notice of Court Date for Motion")
-  
-    return docs_list
----
 objects:
   - motion_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
   - motion_attachment: ALDocument.using(title="Motion", filename="motion.pdf", has_addendum=False)
@@ -1607,22 +1587,12 @@ attachment:
       - "fake": ${ "" }
 ---
 attachment:
-  variable name: motion_continue_instructions[i]
-  name: motion_to_continue_instructions
-  filename: motion-to-continue-instructions
-  skip undefined: True
-  editable: False
-  pdf template file: motion_continue_instructions.pdf
-  fields:
-      - "fake": ${ "" }
----
-attachment:
   variable name: motion_attachment[i]
   name: motion
   filename: motion
   skip undefined: True
   editable: False
-  pdf template file: motion_first_page.pdf
+  pdf template file: motion_plus_additional.pdf
   fields:
       - "trial_court_county": ${ trial_court.address.county }
       - "trial_court_county_2": ${ trial_court.address.county }
@@ -1694,13 +1664,13 @@ attachment:
       - "e_sign_name__2": ${ users[0].name_full() if e_signature else '' }
       - "motion_by_plaintiff": ${ party_label == "plaintiff" or party_label == "petitioner" }
       - "motion_by_defendant": ${ party_label == "defendant" or party_label == "respondent" }
-      - "motion_summary": ${ "Vacate Default Judgment" }
+      - "motion_summary": ${ "Modify Child Support" }
       - "motion_body": ${ motion_body }
       - "additional_motion_cb": ${ True }
       - "additional_motion_body": ${ additional_motion_body }      
       - "for_self": ${True}
       - "for_self_2": ${True}      
-      - "document_name": Motion to Vacate Default Judgment       
+      - "document_name": ${ "Motion to Modify Child Support" }       
       - "delivery_party1_name_full": | 
           % if delivery_parties[0].is_represented:
           ${ delivery_parties[0].lawyer.name_full() }, (lawyer for ${ delivery_parties[0].name_full() })
@@ -1804,7 +1774,7 @@ attachment:
       - "case_number__2": ${ case_number }
       - "e_sign_name__1": ${ users[0].name_full() if e_signature else '' }
       - "for_self": ${True}
-      - "document_name": ${ comma_and_list( docs_delivered() )}
+      - "document_name": ${ "Motion to Modify Child Support" }       
       - "delivery_party1_name_full": | 
           % if x.is_represented:
           ${ x.lawyer.name_full() } (lawyer for ${ x.name_full() })
@@ -1884,10 +1854,14 @@ attachment:
           % endif
           % endif
       - "defendants": |
-          % if in_re_check or anyone_opposing == False:
+          % if in_re_check:
           ${ "" }
           % else:
-          ${list_defendants(users.full_names(), other_parties.full_names(), anyone_opposing, party_label)}
+          % if party_label == 'plaintiff' or party_label == 'petitioner':
+          ${ other_parties.full_names() } 
+          % else:
+          ${ users.full_names() }
+          % endif
           % endif
       - "user__1": ${ users[0].name_full() }
       - "user__2": ${ users[0].name_full() }
@@ -1906,7 +1880,7 @@ attachment:
       - "e_sign_name__2": ${ users[0].name_full() if e_signature else '' }
       - "for_self": ${True}
       - "for_self_2": ${True}      
-      - "motion_summary": ${ motion_summary if motion_type == "Something else" else "Continue (Reschedule) or Extend Time" }
+      - "motion_summary": ${ "Modify Child Support" }       
 
       - "hearing_date": ${ hearing_date if (defined('hearing_date') and has_court_date) else '' }
       - "hearing_time": ${ format_time(hearing_time, format='h:mm') if (defined('hearing_time') and has_court_date) else '' }
@@ -1930,7 +1904,7 @@ attachment:
       - "clerk_phone": ${ trial_court.phone }
       - "clerk_website": ${ trial_court.website }
         
-      - "document_name": ${ comma_and_list( docs_delivered() )}
+      - "document_name": ${ "Motion to Modify Child Support" }
       - "delivery_party1_name_full": | 
           % if delivery_parties[0].is_represented:
           ${ delivery_parties[0].lawyer.name_full() }, (lawyer for ${ delivery_parties[0].name_full() })
@@ -2004,16 +1978,6 @@ review:
       % for my_var in users:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: anyone_opposing
-    button: |
-      % if party_label == "plaintiff":
-      **Any defendants?**
-      ${word(yesno(anyone_opposing))}
-      % else:
-      **Any respondents?**
-      ${word(yesno(anyone_opposing))}
-      % endif
-    show if: (party_label == 'plaintiff' or party_label == 'petitioner')
   - Edit: other_parties.revisit
     button: |
       **The other party: (Edit to change name, lawyer, address, and delivery info)**
@@ -2021,18 +1985,6 @@ review:
       % for my_var in other_parties:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: has_third_parties
-    button: |
-      **Any third parties in this case?**
-      ${word(yesno(has_third_parties))}
-  - Edit: third_parties.revisit
-    button: |
-      **Third parties: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in third_parties:
-        * ${ my_var.name_full() }
-      % endfor
-    show if: has_third_parties      
   - Edit: in_re_check
     button: |
       **Does the court case have "In re:" in the name?**  
@@ -2075,20 +2027,6 @@ review:
     button: |
       **Case number:**
       ${ case_number }   
-  - Edit: motion_type
-    button: |
-      **Reason for motion:**
-      ${ motion_type }
-  - Edit: motion_summary
-    button: |
-      **Motion title:**
-      ${ motion_summary }
-    show if: motion_type == "Something else"
-  - Edit: motion_body
-    button: |
-      **Motion text:**
-      ${ motion_body }
-    show if: motion_type == "Something else"
   - Edit: has_court_date
     button: |
       **Do you already have a court date for your motion from the clerk?**
@@ -2293,26 +2231,6 @@ columns:
 delete buttons: True
 confirm: True
 ---
-id: third parties review screen
-continue button field: third_parties.revisit
-section: Case info
-question: |
-  Edit the third parties
-subquestion: |
-  ${ third_parties.table }
-
-  ${ third_parties.add_action() }
----
-table: third_parties.table
-rows: third_parties
-columns:
-  - Name: |
-      row_item.name_full() if defined("row_item.name.first") else ""
-  - Party, lawyer, address, and delivery info: |
-      action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
-delete buttons: True
-confirm: True
----
 id: case info review screen
 section: Case info
 event: section_case_info
@@ -2332,16 +2250,6 @@ review:
       % for my_var in users:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: anyone_opposing
-    button: |
-      % if party_label == "plaintiff":
-      **Any defendants?**
-      ${word(yesno(anyone_opposing))}
-      % else:
-      **Any respondents?**
-      ${word(yesno(anyone_opposing))}
-      % endif
-    show if: (party_label == 'plaintiff' or party_label == 'petitioner')
   - Edit: other_parties.revisit
     button: |
       **The other party: (Edit to change name, lawyer, address, and delivery info)**
@@ -2349,18 +2257,6 @@ review:
       % for my_var in other_parties:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: has_third_parties
-    button: |
-      **Any third parties in this case?**
-      ${word(yesno(has_third_parties))}
-  - Edit: third_parties.revisit
-    button: |
-      **Third parties: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in third_parties:
-        * ${ my_var.name_full() }
-      % endfor
-    show if: has_third_parties      
   - Edit: in_re_check
     button: |
       **Does the court case have "In re:" in the name?**  
@@ -2412,20 +2308,10 @@ question: |
 subquestion: |
   Edit your answers below.
 review:
-  - Edit: motion_type
-    button: |
-      **Reason for motion:**
-      ${ motion_type }
-  - Edit: motion_summary
-    button: |
-      **Motion title:**
-      ${ motion_summary }
-    show if: motion_type == "Something else"
   - Edit: motion_body
     button: |
       **Motion text:**
       ${ motion_body }
-    show if: motion_type == "Something else"
 ---
 id: delivery info review screen
 section: Notice and delivery
@@ -2449,18 +2335,6 @@ review:
       % for my_var in other_parties:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: has_third_parties
-    button: |
-      **Any third parties in this case?**
-      ${word(yesno(has_third_parties))}
-  - Edit: third_parties.revisit
-    button: |
-      **Third parties: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in third_parties:
-        * ${ my_var.name_full() }
-      % endfor
-    show if: has_third_parties      
   - Edit: has_court_date
     button: |
       **Do you already have a court date for your motion from the clerk?**
