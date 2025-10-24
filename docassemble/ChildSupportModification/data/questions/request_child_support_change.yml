@@ -340,14 +340,14 @@ fields:
   - Child support order name: case_type
     input type: radio
     choices:
-      - Order for Support: support
-      - Order for Child Support: child_support
-      - Judgment for Dissolution of Marriage: marriage
-      - Judgment for Dissolution of Civil Union: civil_union
-      - Order of Parentage: parentage
+      - Order for Support
+      - Order for Child Support
+      - Judgment for Dissolution of Marriage
+      - Judgment for Dissolution of Civil Union
+      - Order of Parentage
       - Other (explain below): other
   - What is the name of the court document that orders child support?: other_case_type
-    maxlength: 60
+    maxlength: 50
     show if:
       variable: case_type
       is: "other"
@@ -424,8 +424,8 @@ fields:
     input type: radio
     choices:
       - Once a week: weekly
-      - Once every two weeks: bi-weekly
-      - Twice every month: bi-monthly
+      - Once every two weeks: every other week
+      - Twice every month: twice a month
       - Once every month: monthly
       - Once every year: yearly
 ---
@@ -939,26 +939,81 @@ content: |
   [FILE case_number_example.png, 100%, Summons form showing case number]
 ---  
 depends on:
-  - users[0].name
-code: |
-  motion_body = "Modify Child Support - UPDATE::::, pursuant to 735 ILCS 5/2-1301. In support of this motion, I state as follows: \n \n"
-  additional_motion_body = "4. I filed this motion as soon as possible after learning of the default.\n \n"
+  - users[0].name.first
+  - users[0].name.middle
+  - users[0].name.last
+  - users[0].name.suffix 
+  - users[0].birthdate
+  - users[0].address.address
+  - users[0].address.unit
+  - users[0].address.city
+  - users[0].address.state
+  - users[0].address.zip
+  - users[0].residence_county
+  - other_parties[0].name.first
+  - other_parties[0].name.middle
+  - other_parties[0].name.last
+  - other_parties[0].name.suffix 
+  - other_parties[0].birthdate
+  - other_parties[0].address.address
+  - other_parties[0].address.unit
+  - other_parties[0].address.city
+  - other_parties[0].address.state
+  - other_parties[0].address.zip
+  - other_parties[0].address.county
 
-#
-#  motion_body += "1. This motion is filed within 30 days of the default judgment of " + judgment_date + ".\n \n"
-#
-#  if dont_know_judgment_time == False:
-#    motion_body += "2. On " + judgment_date + ", my case was set to be heard at " + format_time(judgment_time) + ". "
-#  else:
-#    motion_body += "2. On " + judgment_date + ", my case was set to be heard. "
-#  
-#  if present_in_court:
-#    motion_body += "I am a self-represented litigant who failed to timely file an Appearance or Answer, but I did attend court on the day that the judgment was entered. If my Motion to Vacate is granted I can file the Appearance or Answer within 14 days of the order of vacating the default judgment."
-#  else: 
-#    motion_body += "I did not appear at the hearing on that date and time because: " + reasons 
-#
-#  motion_body += "\n \n3.	I learned of the default judgment on " + date_learned + ".\n \n"
-#
+
+code: |
+  motion_body = "Pursuant to 750 ILCS 5/510, modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
+
+  motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
+
+  motion_body += "2. My name is " + users[0].name_full() + ". I am " + str(users[0].age_in_years()) + " years old. My address is " + users[0].address.on_one_line(bare=True) + ". I live in " + users[0].residence_county + " County.\n\n"
+  
+  motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". They are " + str(other_parties[0].age_in_years()) + " years old. Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
+  
+  if other_parties[0].address.state == "IL":
+    motion_body += "a resident of Illinois.\n\n"
+  else:
+    motion_body += "not a resident of Illinois.\n\n"  
+  
+  motion_body += "4. On " + order_date + ", this court entered "
+  
+  if case_type == "other":
+    motion_body += indefinite_article(other_case_type)
+  else:
+    motion_body += indefinite_article(case_type)
+
+  motion_body += " for "
+
+  if payor_parent == "Me":
+    motion_body += users[0].name_full()
+  else:
+    motion_body += other_parties[0].name_full()
+
+  motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
+  
+
+
+  
+  additional_motion_body = "5. I filed this motion as soon as possible after learning of the default.\n \n"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #  additional_motion_body = "4. I filed this motion as soon as possible after learning of the default.\n \n"
 #
 #  additional_motion_body += "5. This matter was not decided on the merits, and I request an opportunity to be heard. \n \n"
@@ -980,7 +1035,13 @@ question: |
 subquestion: |
   So far, the motion body looks like this:
 
-  ${ motion_attachment.as_pdf(key='preview').extract_pages(last=2) }
+  ${ motion_body}
+
+  And the additional motion body (page 2) looks like this:
+  
+  ${ additional_motion_body}
+
+#  ${ motion_attachment.as_pdf(key='preview').extract_pages(last=2) }
 ---
 id: your contact information
 question: |
