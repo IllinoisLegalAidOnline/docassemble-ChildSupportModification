@@ -154,6 +154,9 @@ code: |
   set_progress(100)
   nav.set_section('section_download')
   forms_assembling
+  
+  debug_motion_body_2  
+  
   snapshot_forms
   get_docs_screen
 ---
@@ -501,6 +504,8 @@ fields:
     show if:
       variable: graduation_change
       is: True
+  - "The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.": costs_change
+    datatype: yesnowide    
   - "One or more of the children have become emancipated.": emancipation_change
     datatype: yesnowide
   - Emancipation date: emancipation_date
@@ -518,13 +523,13 @@ fields:
       is: True
   - Explain the substantial change in circumstances: other_change_text
     datatype: area
-    rows: 8
-    maxlength: 250
+    rows: 9
+    maxlength: 400
     show if:
       variable: other_change
       is: True
   - note: |
-      The form has room for **200 characters** including spaces.
+      The form has room for **400 characters** including spaces.
     show if:
       variable: other_change
       is: True
@@ -540,8 +545,8 @@ fields:
     choices:
       - "I want the child support payment amount to **increase**.": increase
       - "I want the child support payment amount to **decrease**.": decrease
+      - "I want the child support to **end** for all children on the support order. All children on the order are over 18 and have or will soon graduate high school, or they have emancipated.": end
       - "No change to support amount.": none
-
 ---
 code: |
   children[i].name.first
@@ -937,96 +942,131 @@ content: |
   In this example, the case number is **2022 EXAMPLE 123**.
   
   [FILE case_number_example.png, 100%, Summons form showing case number]
----  
-depends on:
-  - users[0].name.first
-  - users[0].name.middle
-  - users[0].name.last
-  - users[0].name.suffix 
-  - users[0].birthdate
-  - users[0].address.address
-  - users[0].address.unit
-  - users[0].address.city
-  - users[0].address.state
-  - users[0].address.zip
-  - users[0].residence_county
-  - other_parties[0].name.first
-  - other_parties[0].name.middle
-  - other_parties[0].name.last
-  - other_parties[0].name.suffix 
-  - other_parties[0].birthdate
-  - other_parties[0].address.address
-  - other_parties[0].address.unit
-  - other_parties[0].address.city
-  - other_parties[0].address.state
-  - other_parties[0].address.zip
-  - other_parties[0].address.county
-
-
+---
+sets: motion_body
 code: |
-  motion_body = "Pursuant to 750 ILCS 5/510, modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
-
-  motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
-
-  motion_body += "2. My name is " + users[0].name_full() + ". I am " + str(users[0].age_in_years()) + " years old. My address is " + users[0].address.on_one_line(bare=True) + ". I live in " + users[0].residence_county + " County.\n\n"
+  def make_motion_body():
+    motion_body = "Pursuant to 750 ILCS 5/510, modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
   
-  motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". They are " + str(other_parties[0].age_in_years()) + " years old. Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
+    motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
   
-  if other_parties[0].address.state == "IL":
-    motion_body += "a resident of Illinois.\n\n"
-  else:
-    motion_body += "not a resident of Illinois.\n\n"  
+    motion_body += "2. My name is " + users[0].name_full() + ". I am " + str(users[0].age_in_years()) + " years old. My address is " + users[0].address.on_one_line(bare=True) + ". "
   
-  motion_body += "4. On " + order_date + ", this court entered "
+    if hide_address:
+      if hide_county:
+        motion_body += "I am not disclosing my county of residence to protect myself.\n\n"
+      else:
+        motion_body += "I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
+    else:
+      motion_body += "I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
+    
+    motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". They are " + str(other_parties[0].age_in_years()) + " years old. Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
+    
+    if other_parties[0].address.state == "IL":
+      motion_body += "a resident of Illinois.\n\n"
+    else:
+      motion_body += "not a resident of Illinois.\n\n"  
+    
+    motion_body += "4. On " + order_date + ", this court entered "
+    
+    if case_type == "other":
+      motion_body += indefinite_article(other_case_type)
+    else:
+      motion_body += indefinite_article(case_type)
   
-  if case_type == "other":
-    motion_body += indefinite_article(other_case_type)
-  else:
-    motion_body += indefinite_article(case_type)
-
-  motion_body += " for "
-
-  if payor_parent == "Me":
-    motion_body += users[0].name_full()
-  else:
-    motion_body += other_parties[0].name_full()
-
-  motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
+    motion_body += " for "
   
-
-
+    if payor_parent == "Me":
+      motion_body += users[0].name_full()
+    else:
+      motion_body += other_parties[0].name_full()
   
-  additional_motion_body = "5. I filed this motion as soon as possible after learning of the default.\n \n"
+    motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
+    
+    return motion_body
+---
+sets: additional_motion_body
+code: |
+  def make_additional_motion_body():
+    additional_motion_body = "5. The Judgment or Order provided for the support of the following child(ren):\n \n"
+  
+    for child in children:
+      additional_motion_body += "\t* " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
+  
+    additional_motion_body += "\n6. The paying parent is "
+  
+    if is_support_current:
+      additional_motion_body += "current on child support payments.\n\n"
+    else:
+      additional_motion_body += "not current on child support payements and owes $" + thousands(arrears_amount, show_decimals=True) + " to the receiving parent.\n\n"
+  
+    additional_motion_body += "7. Since the entry of the Judgment or Order, there has been a substantial change in the circumstances of the parties which justifies the immediate modification of the child support order, including:\n\n"
+  
+    if user_income_change:
+      if user_income_change_increase:
+        additional_motion_body += "\t* My income has increased.\n"
+      else:
+        additional_motion_body += "\t* My income has decreased.\n"  
+  
+    if other_parent_income_change:
+      if other_parent_income_change_increase:
+        additional_motion_body += "\t* " + other_parties[0].name_full() + "'s income has increased.\n"
+      else:
+        additional_motion_body += "\t* " + other_parties[0].name_full() + "'s income has decreased.\n"  
+    if custody_change:
+      additional_motion_body += "\t* There has been a change in the allocation of parental responsibilities (custody).\n"   
+  
+    if health_insurance_change:
+      additional_motion_body += "\t* The supporting parent's ability to maintain health insurance coverage has changed.\n" 
+  
+    if graduation_change:
+      additional_motion_body += "\t* One or more of the children are now over the age of 18 and have or will have graduated from high school on " + graduation_date + ".\n"
+  
+    if costs_change:
+      additional_motion_body += "\t* The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.\n"
+    
+    if emancipation_change:
+      additional_motion_body += "\t* One or more of the children have become emancipated on " + emancipation_date + ".\n" 
+  
+    if other_change:
+      additional_motion_body += "\t* " + other_change_text + "\n"
+  
+    additional_motion_body += "\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
+  
+    if graduation_change:
+      additional_motion_body += "* The existing child support order is terminated for the child(ren) who have reached the age of 18 and have or will have graduated from high school.\n"
+      if support_amount_change != "end":
+        additional_motion_body += "\t* There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+    
+    if emancipation_change:
+      additional_motion_body += "* The existing child support order is terminated for the child(ren) who have become emancipated.\n" 
+      if support_amount_change != "end":
+        additional_motion_body += "\t* There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+    
+    if support_amount_change == "increase":
+      additional_motion_body += "* The existing child support order is increased to reflect the changes in the parties' obligations, conditions, and abilities to the percentage of net income as provided by statute.\n"
+  
+    if support_amount_change == "decrease":
+      additional_motion_body += "* The existing child support order is reduced to reflect the changes in the parties' obligations, conditions, and abilities.\n"
+  
+    if health_insurance_change:
+      if health_insurance_parent == "Me":
+        additional_motion_body += "* That " + users[0].name_full()
+      else:
+        additional_motion_body += "* That " + other_parties[0].name_full()
+      additional_motion_body += " will maintain health insurance for the child(ren), and that the Court determines the amount of health insurance each party should pay.\n"
+  
+    additional_motion_body += "* Enter such other orders as may be necessary and appropriate."
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#  additional_motion_body = "4. I filed this motion as soon as possible after learning of the default.\n \n"
-#
-#  additional_motion_body += "5. This matter was not decided on the merits, and I request an opportunity to be heard. \n \n"
-#  
-#  additional_motion_body += "6. I have at all times tried my best to defend my case and preserve my rights. \n \n"
-#
-#  additional_motion_body += "7. In this case, justice will be served only by vacating the default judgment entered against me and allowing the case to proceed to trial on its merits. \n \n"
-#
-#  if trial_with == "judge_only":
-#    additional_motion_body += "WHEREFORE, I ask that this court vacate the default judgment of " + judgment_date + ", stay all proceedings, and grant me leave to file an Appearance or Answer at this time."
-#  else:
-#    additional_motion_body += "WHEREFORE, I ask that this court vacate the default judgment of " + judgment_date + ", stay all proceedings, and grant me leave to file an Appearance or Answer and Jury Demand at this time."
-#
+    return additional_motion_body
+---
+code: |
+  def clean_county(county_text):
+    if county_text.lower()[-6:] == "county":
+      clean_county = county_text[:-6]
+      return clean_county.rstrip()
+    else:
+      return county_text
 ---
 id: debug motion body
 continue button field: debug_motion_body
@@ -1034,14 +1074,27 @@ question: |
   Motion text
 subquestion: |
   So far, the motion body looks like this:
-
-  ${ motion_body}
+ 
+  ${ make_motion_body() }
 
   And the additional motion body (page 2) looks like this:
   
-  ${ additional_motion_body}
+  ${ make_additional_motion_body() }
 
 #  ${ motion_attachment.as_pdf(key='preview').extract_pages(last=2) }
+---
+id: debug motion body
+continue button field: debug_motion_body_2
+question: |
+  Motion text
+subquestion: |
+  So far, the motion body looks like this:
+ 
+  ${ make_motion_body() }
+
+  And the additional motion body (page 2) looks like this:
+  
+  ${ make_additional_motion_body() }
 ---
 id: your contact information
 question: |
@@ -2133,10 +2186,32 @@ review:
       **Call-in phone number for remote appearance:**
       ${ phone_number_formatted(remote_phone) }
     show if: attend_court['remote'] == True
+  - Edit: hide_address
+    button: |
+      **Do you want to keep your address hidden?**
+      ${ word(yesno(hide_address)) }
   - Edit: users[0].address.address
     button: |
-      **Your address:**
+      % if hide_address:
+      **Your mailing address (will appear on your court papers):**
+      % else:
+      **Your home address:**
+      % endif    
       ${ users[0].address.on_one_line(bare=True) }
+  - Edit: hide_county
+    button: |
+      **Do you want to keep the county where you live hidden?**
+      ${ word(yesno(hide_county)) }
+    show if: hide_address
+  - Edit: users[0].residence_county
+    button: |
+      **County and state where you currently live:**
+      % if users[0].residence_county == "IL":
+      ${ users[0].residence_county }
+      % else:
+      ${ users[0].residence_county + ", " + users[0].residence_state }
+      % endif
+    show if: hide_address == False
   - Edit: users[0].phone_number
     button: |
       **Your phone number:**
@@ -2456,10 +2531,32 @@ review:
     button: |
       **Your name:**
       ${ users[0].name_full() }
+  - Edit: hide_address
+    button: |
+      **Do you want to keep your address hidden?**
+      ${ word(yesno(hide_address)) }
   - Edit: users[0].address.address
     button: |
-      **Your address:**
+      % if hide_address:
+      **Your mailing address (will appear on your court papers):**
+      % else:
+      **Your home address:**
+      % endif    
       ${ users[0].address.on_one_line(bare=True) }
+  - Edit: hide_county
+    button: |
+      **Do you want to keep the county where you live hidden?**
+      ${ word(yesno(hide_county)) }
+    show if: hide_address
+  - Edit: users[0].residence_county
+    button: |
+      **County and state where you currently live:**
+      % if users[0].residence_county == "IL":
+      ${ users[0].residence_county }
+      % else:
+      ${ users[0].residence_county + ", " + users[0].residence_state }
+      % endif
+    show if: hide_address == False
   - Edit: users[0].phone_number
     button: |
       **Your phone number:**
