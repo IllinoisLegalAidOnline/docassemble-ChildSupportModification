@@ -129,10 +129,7 @@ code: |
       person.delivery_date
 
   hand_delivery_info
-
-  if trial_court_index == -1:
-    previous_cook_case_type
-  
+ 
   courthouse_info
   financial_affidavit_note
 
@@ -830,35 +827,6 @@ code: |
   if states_attorneys.number() == 1:
     states_attorneys.there_is_another = False
 ---
-id: any previous cook cases
-question: |
-  Have you filed any divorce or parentage cases with ${other_parties[0].name_full()} in Cook County before?
-subquestion: |
-  This will help the court clerk in Cook County assign your case to the correct location. If you were involved in more than one, choose the most recent.
-fields:
-  - no label: previous_cook_case_type
-    datatype: radio
-    choices:
-      - I was in an earlier **divorce** case with ${other_parties[0].name_full()}.: divorce
-      - I was in an earlier **parentage** case with ${other_parties[0].name_full()} involving children we had together.: parentage
-      - No earlier divorce or parentage cases were filed in Cook County.: none
-  - Date case was filed: previous_cook_case_date
-    datatype: ThreePartsDate
-    alMax: ${ today().format("yyyy-MM-dd") }
-    required: False
-    js show if: |
-      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
-  - Case number: previous_cook_case_number
-    maxlength: 24
-    required: False
-    js show if: |
-      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
-  - Name of judge: previous_cook_case_judge
-    maxlength: 45
-    required: False
-    js show if: |
-      val("previous_cook_case_type") === "divorce" || val("previous_cook_case_type") === "parentage" 
----
 id: trial court county
 continue button field: case_county
 question: |
@@ -946,19 +914,18 @@ content: |
 sets: motion_body
 code: |
   def make_motion_body():
-    motion_body = "Pursuant to 750 ILCS 5/510, modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
+    motion_body = "I am asking this Honorable Court, pursuant to 750 ILCS 5/510, to modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
   
     motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
   
-    motion_body += "2. My name is " + users[0].name_full() + ". I am " + str(users[0].age_in_years()) + " years old. My address is " + users[0].address.on_one_line(bare=True) + ". "
-  
+    motion_body += "2. My name is " + users[0].name_full() + ". I am " + str(users[0].age_in_years()) + " years old. "
     if hide_address:
       if hide_county:
-        motion_body += "I am not disclosing my county of residence to protect myself.\n\n"
-      else:
-        motion_body += "I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
+        motion_body += "I am not disclosing my address or county of residence to protect myself or my household.\n\n"
+      else: 
+        motion_body += "I am not disclosing my address to protect myself or my household. I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"  
     else:
-      motion_body += "I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
+      motion_body += "My address is " + users[0].address.on_one_line(bare=True) + ". I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
     
     motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". They are " + str(other_parties[0].age_in_years()) + " years old. Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
     
@@ -982,18 +949,18 @@ code: |
       motion_body += other_parties[0].name_full()
   
     motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
+
+    motion_body += "5. The Judgment or Order provided for the support of the following child(ren):\n \n"
+  
+    for child in children:
+      motion_body += "\t* " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
     
     return motion_body
 ---
 sets: additional_motion_body
 code: |
-  def make_additional_motion_body():
-    additional_motion_body = "5. The Judgment or Order provided for the support of the following child(ren):\n \n"
-  
-    for child in children:
-      additional_motion_body += "\t* " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
-  
-    additional_motion_body += "\n6. The paying parent is "
+  def make_additional_motion_body():  
+    additional_motion_body = "6. The paying parent is "
   
     if is_support_current:
       additional_motion_body += "current on child support payments.\n\n"
@@ -1642,6 +1609,12 @@ objects:
   - motion_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
   - motion_attachment: ALDocument.using(title="Motion", filename="motion.pdf", has_addendum=False)
   - notice_attachment: ALDocument.using(title="Notice of Court Date for Motion", filename="notice_of_court_date.pdf", has_addendum=False)
+  - child_support_order: ALDocument.using(title="Order for Support", filename="child_support_order.pdf", has_addendum=False)
+  - support_information_sheet: ALDocument.using(title="Support Information Sheet", filename="support_information_sheet.pdf", has_addendum=False)
+  - income_withholding_instructions: ALDocument.using(title="Income withholding instructions", filename="income_withholding_instructions.pdf", has_addendum=False)
+  - income_withholding_for_support: ALDocument.using(title="Income withholding for support", filename="income_withholding_for_support.pdf", has_addendum=False)
+  - income_withholding_letter_to_employer: ALDocument.using(title="Income withholding letter to employer", filename="income_withholding_letter_to_employer.pdf", has_addendum=False)
+ 
 ---
 #This needs to be a generic object because the delivery parties list entries point to entries in other lists.
 generic object: ALIndividual
@@ -1675,14 +1648,22 @@ code: |
 code: |
   motion_instructions.enabled = True
   motion_attachment.enabled = True  
+  motion_single_pdf_bundle.enabled = True
   
   notice_attachment.enabled = True
   notice_single_pdf_bundle.enabled = True
 
+  child_support_order.enabled = True
+  support_information_sheet.enabled = True
+  income_withholding_instructions.enabled = True
+  income_withholding_for_support.enabled = True
+  income_withholding_letter_to_employer.enabled = True  
+
+
 ---
 objects:
-  - al_user_bundle: ALDocumentBundle.using(elements=[motion_instructions, motion_single_pdf_bundle, notice_single_pdf_bundle], filename="motion.pdf", title="All forms")
-  - al_court_bundle: ALDocumentBundle.using(elements=[motion_single_pdf_bundle, notice_single_pdf_bundle], filename="motion.pdf", title="Motion")
+  - al_user_bundle: ALDocumentBundle.using(elements=[motion_instructions, motion_single_pdf_bundle, notice_single_pdf_bundle, child_support_order, support_information_sheet, income_withholding_instructions, income_withholding_for_support, income_withholding_letter_to_employer], filename="motion.pdf", title="All forms")
+  - al_court_bundle: ALDocumentBundle.using(elements=[motion_single_pdf_bundle, notice_single_pdf_bundle, child_support_order, support_information_sheet, income_withholding_instructions, income_withholding_for_support, income_withholding_letter_to_employer], filename="motion.pdf", title="Motion")
 
 ---
 objects:
@@ -1708,7 +1689,7 @@ attachment:
   editable: False
   pdf template file: motion_plus_additional.pdf
   fields:
-      - "trial_court_county": ${ trial_court.address.county }
+      - "trial_court_county": ${ trial_court.address.county.upper() }
       - "trial_court_county_2": ${ trial_court.address.county }
       - "plaintiffs": |
           % if in_re_check:
@@ -1774,7 +1755,8 @@ attachment:
       - "case_number__3": ${ case_number }
       - "case_number__4": ${ case_number }
       - "case_number__5": ${ case_number }
-      - "e_sign_name__1": ${ users[0].name_full() if e_signature else '' }
+      - "movant": ${ users[0].name_full() }
+      - "e_sign_name__1": ${ "/s " + users[0].name_full() if e_signature else '' }
       - "e_sign_name__2": ${ users[0].name_full() if e_signature else '' }
       - "motion_by_plaintiff": ${ party_label == "plaintiff" or party_label == "petitioner" }
       - "motion_by_defendant": ${ party_label == "defendant" or party_label == "respondent" }
@@ -2071,6 +2053,100 @@ attachment:
           % endif
 
       - "is_additional_proof_delivery_yes": ${ delivery_parties.number() > 1 }
+
+---
+attachment:
+  variable name: child_support_order[i]
+  name: child_support_order
+  filename: child_support_order
+  skip undefined: True
+  editable: True
+  pdf template file: child_support_order.pdf
+  fields:
+    - "county": ${ trial_court.address.county }
+    - "petitioner__1": ${ users[0].name_full() }
+    - "respondent__1": ${ other_parties[0].name_full() }
+---
+attachment:
+  variable name: support_information_sheet[i]
+  name: support_information_sheet
+  filename: support_information_sheet
+  skip undefined: True
+  editable: True
+  pdf template file: support_information_sheet.pdf
+  fields:
+    - "county": ${ trial_court.address.county }
+    - "petitioner__1": ${ users[0].name_full() }
+    - "respondent__1": ${ other_parties[0].name_full() }
+    - "petitioner__2": ${ users[0].name_full() }
+    - "user_address__2": ${ users[0].address.on_one_line(bare=True) if hide_address else "" }
+    - "user_dob": ${ users[0].birthdate }
+    - "user_phone__2": ${ phone_number_formatted(users[0].phone_number) }
+    - "user_employer": ${ users[0].employers[0].name.text if users[0].emp_status["Yes"] else "" }
+    - "user_employer_address": ${ users[0].employers[0].address.on_one_line(bare=True) if users[0].emp_status["Yes"] else "" }
+    - "user_employer_phone": ${ phone_number_formatted(users[0].employers[0].phone_number) if users[0].emp_status["Yes"] else "" }
+
+    - "respondent__2": ${ other_parties[0].name_full() }
+    - "resp_address": ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
+    - "resp_dob": ${ other_parties[0].birthdate }
+    - "resp_phone": ${ phone_number_formatted(other_parties[0].phone_number) }
+    - "resp_employer": ${ other_parties[0].employers[0].name.text if other_parties[0].emp_status["Yes"] else "" }
+    - "resp_employer_address": ${ other_parties[0].employers[0].address.on_one_line(bare=True) if other_parties[0].emp_status["Yes"] else "" }
+    - "resp_employer_phone": ${ phone_number_formatted(other_parties[0].employers[0].phone_number) if other_parties[0].emp_status["Yes"] else "" }
+
+    - "child_name_0": ${ children[0].name_full() }
+    - "child_dob_0": ${ children[0].birthdate }
+    - "child_name_1": ${ children[1].name_full() }
+    - "child_dob_1": ${ children[1].birthdate }
+    - "child_name_2": ${ children[2].name_full() }
+    - "child_dob_2": ${ children[2].birthdate }
+    - "child_name_3": ${ children[3].name_full() }
+    - "child_dob_3": ${ children[3].birthdate }
+    - "child_name_4": ${ children[4].name_full() }
+    - "child_dob_4": ${ children[4].birthdate }
+    - "child_name_5": ${ children[5].name_full() }
+    - "child_dob_5": ${ children[5].birthdate }
+    - "child_name_6": ${ children[6].name_full() }
+    - "child_dob_6": ${ children[6].birthdate }
+
+    - "user_signature": ${ users[0].name_full() if e_signature else '' }
+    - "user__2": ${ users[0].name_full() }
+    - "user_address": ${ users[0].address.on_one_line(bare=True) }
+    - "user_phone": ${ phone_number_formatted(users[0].phone_number) }
+    - "user_atty_number": ${ '' }
+    - "user_email": ${ users[0].email if users[0].has_email_address else "" }
+
+---
+attachment:
+  variable name: income_withholding_instructions[i]
+  name: income_withholding_instructions
+  filename: income_withholding_instructions
+  pdf template file: income_withholding_instructions.pdf  
+
+---
+attachment:
+  variable name: income_withholding_for_support[i]
+  name: income_withholding_for_support
+  filename: income_withholding_for_support
+  skip undefined: True
+  editable: True  
+  pdf template file: income_withholding_for_support.pdf  
+  fields: 
+    - "issuing_state": ${"Illinois"}
+    - "payee_name": ${ "Illinois State Disbursement Unit (SDU)" }
+    - "payee_address": ${ "PO Box 5400, Carol Stream, IL 60197-5400" }
+
+---
+attachment:
+  variable name: income_withholding_letter_to_employer[i]
+  name: income_withholding_letter_to_employer
+  filename: income_withholding_letter_to_employer
+  skip undefined: True
+  editable: True  
+  pdf template file: income_withholding_letter_to_employer.pdf
+  fields:
+    - "petitioner__1": ${ users[0].name_full() }
+    - "respondent__1": ${ other_parties[0].name_full() }
 
 ---
 ############### Review page
