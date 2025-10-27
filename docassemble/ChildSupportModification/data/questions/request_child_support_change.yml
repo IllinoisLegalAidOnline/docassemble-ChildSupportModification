@@ -2140,6 +2140,8 @@ attachment:
     - "issuing_state": ${"Illinois"}
     - "payee_name": ${ "Illinois State Disbursement Unit (SDU)" }
     - "payee_address": ${ "PO Box 5400, Carol Stream, IL 60197-5400" }
+    - "case_number__1": ${ case_number }
+    - "case_number_4d": ${ ivd_case_number }      
 
 ---
 attachment:
