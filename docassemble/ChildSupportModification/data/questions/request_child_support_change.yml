@@ -64,20 +64,15 @@ code: |
   whats_next
   accept_terms
   calculator
-  if order_type == "admin" or order_type == "idk":
-    must_be_judicial_order
   
   set_progress(15)
   nav.set_section('section_case')
-  users[0].name.first
-  other_parties.gather()
+  if order_type == "admin" or order_type == "idk":
+    must_be_judicial_order
   case_type
+  users[0].name.first
   party_label    
-  #if has_third_parties:
-  #  third_parties.gather()
-  #if in_re_check == True:
-  #  in_re_label
-  #trial_court_index
+  other_parties.gather()
   if trial_court_index == -1:
     cook_district
   courthouse_info
@@ -535,7 +530,7 @@ id: increase or decrease support
 question: |
   How do you want the child support payment amount to change?
 subquestion: |
-  If you only want a change to who provides health insurance for the children, select **No change to support amount**.
+  If you only want a change to who provides health insurance for the children, select **No change to the child support amount**.
 fields:
   - no label: support_amount_change
     input type: radio
@@ -543,7 +538,7 @@ fields:
       - "I want the child support payment amount to **increase**.": increase
       - "I want the child support payment amount to **decrease**.": decrease
       - "I want the child support to **end** for all children on the support order. All children on the order are over 18 and have or will soon graduate high school, or they have emancipated.": end
-      - "No change to support amount.": none
+      - "No change to the child support amount.": none
 ---
 code: |
   children[i].name.first
@@ -1761,9 +1756,9 @@ attachment:
       - "motion_by_plaintiff": ${ party_label == "plaintiff" or party_label == "petitioner" }
       - "motion_by_defendant": ${ party_label == "defendant" or party_label == "respondent" }
       - "motion_summary": ${ "Modify Child Support" }
-      - "motion_body": ${ motion_body }
+      - "motion_body": ${ make_motion_body() }
       - "additional_motion_cb": ${ True }
-      - "additional_motion_body": ${ additional_motion_body }      
+      - "additional_motion_body": ${ make_additional_motion_body() }      
       - "for_self": ${True}
       - "for_self_2": ${True}      
       - "document_name": ${ "Motion to Modify Child Support" }       
@@ -2157,20 +2152,42 @@ question: |
 subquestion: |
   Edit your answers below.
 review: 
+  - note: |
+      <h4>Case details</h4>
+  - Edit: order_type
+    button: |
+      **Type of child support order:**
+      % if order_type == "admin":
+      Administrative IV-D (through IDHFS)
+      % endif
+      % if order_type == "judicial":
+      Judicial (through court)
+      % endif
+      % if order_type == "registered":
+      IV-D support order registered on ${ registration_date }
+      % endif
+      % if order_type == "idk":
+      I'm not sure.
+      % endif        
+  - Edit: case_type
+    button: |
+      **Name of child support order:**
+      % if case_type == "other":
+      Other: ${ other_case_type }
+      % else:
+      ${ case_type }
+      % endif      
+  - Edit: users[0].name.first
+    button: |
+      **Your name:**
+      ${ users[0].name_full() }
   - Edit: party_label
     button: |
-      **Party label:**
+      **Your role in the case:**
       ${ party_label }
-  - Edit: users.revisit
-    button: |
-      **Your party: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in users:
-        * ${ my_var.name_full() }
-      % endfor
   - Edit: other_parties.revisit
     button: |
-      **The other party: (Edit to change name, lawyer, address, and delivery info)**
+      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
 
       % for my_var in other_parties:
         * ${ my_var.name_full() }
@@ -2217,6 +2234,155 @@ review:
     button: |
       **Case number:**
       ${ case_number }   
+
+  - note: |
+      <h4>Child support</h4>
+  - Edit: order_date
+    button: |
+      **Child support order date:**
+      ${ order_date}
+  - Edit: payor_parent
+    button: |
+      **Who was ordered to pay child support in the ${ order_date } order?**
+      % if payor_parent == "other":
+      ${other_parties[0].name_full()}
+      % else:
+      Me
+      % endif
+  - Edit: support_amount
+    button: |
+      **Payment amount and frequency:**
+      $${ thousands(support_amount, show_decimals=True) }, paid ${ support_frequency }
+  - Edit: is_support_current
+    button: |
+      **Are the child support payments up to date?**
+      % if is_support_current:
+      Yes
+      % else:
+      No, $${ thousands(arrears_amount, show_decimals=True) } is overdue.
+      % endif
+  - Edit: user_income_change
+    button: |
+      **Why do you want to change child support?**
+      
+      % if user_income_change:
+      % if user_income_change_increase:
+        * My income **increased** since the ${ order_date } order.
+      % else:
+        * My income **decreased** since the ${ order_date } order.
+      % endif
+      % endif      
+      % if other_parent_income_change:
+      % if other_parent_income_change_increase:
+        * ${ other_parties[0].name_full() }'s income **increased** since the ${ order_date } order.
+      % else:
+        * ${ other_parties[0].name_full() }'s income **decreased** since the ${ order_date } order.
+      % endif
+      % endif      
+      % if custody_change:
+        * There has been a change in the allocation of parental responsibilities (custody).
+      % endif
+      % if health_insurance_change:
+      % if health_insurance_parent == "Me":
+        * The supporting parent's ability to maintain health insurance coverage has changed. I should maintain health insureance for the children.
+      % else:
+        * The supporting parent's ability to maintain health insurance coverage has changed. ${ other_parties[0].name_full() } should maintain health insureance for the children.
+      % endif
+      % endif      
+      % if custody_change:
+        * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
+      % endif
+      % if costs_change:
+        * The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
+      % endif
+      % if emancipation_change:
+        * One or more of the children have become emancipated on ${ emancipation_date }.
+      % endif
+      % if other_change:
+        * Substantial change in circumstances: ${ other_change_text.replace("\n", " ").replace("\r", " ") }
+      % endif
+  - Edit: support_amount_change
+    button: |
+      **How do you want the child support payment amount to change?**
+      % if support_amount_change == "increase":
+      I want the child support payment amount to **increase**.
+      % elif support_amount_change == "decrease":
+      I want the child support payment amount to **decrease**.
+      % elif  support_amount_change == "end":
+      I want the child support to **end** for all children on the support order.
+      % else:
+      No change to the child support amount.
+      % endif
+
+      
+  - note: |
+      <h4>About your children</h4>
+  - Edit: children.revisit
+    button: |
+      **Your children with ${other_parties[0].name_full()}:**
+
+      % for my_var in children:
+        * ${ my_var.name_full() }, born: ${ my_var.birthdate }
+      % endfor
+      
+  - note: |
+      <h4>About the other parent</h4>
+  - Edit: other_parties[0].name.first
+    button: |
+      **The other parent's name:**
+      ${other_parties[0].name_full()}
+  - Edit: other_parties[0].birthdate
+    button: |
+      **When was ${other_parties[0].name_full()} born?**
+      ${ other_parties[0].birthdate }
+  - Edit: knows_other_parent_address
+    button: |
+      **Do you know ${other_parties[0].name_full()}'s current address?**
+      ${ word(yesno(knows_other_parent_address)) }
+  - Edit: other_parties[0].address.address
+    button: |
+      **${other_parties[0].name_full()}'s current address:**
+      ${ other_parties[0].address.on_one_line(bare=True) }
+    show if: knows_other_parent_address
+  - Edit: other_parties[0].phone_number
+    button: |
+      **${other_parties[0].name_full()}'s phone number:**
+      % if other_parties[0].phone_number != "":
+      ${ phone_number_formatted(other_parties[0].phone_number) }      
+      % else:
+      ${ "None entered" }
+      % endif   
+  - Edit: other_parties[0].emp_status
+    button: |
+      **Is ${other_parties[0].name_full()} employed?**
+
+      % if other_parties[0].emp_status == "Yes":
+      * Yes
+      % elif other_parties[0].emp_status == "No":
+      * No
+      % else:
+      * I don't know.
+      % endif
+  - Edit: other_parties[0].employer.name.text
+    button: |
+      **${other_parties[0].name_full()}'s employer name and phone number:**
+      ${ other_parties[0].employer.name.text }, ${ phone_number_formatted(other_parties[0].employer.phone_number)}
+    show if: other_parties[0].emp_status == "Yes"
+  - Edit: other_parties[0].employer.address.address
+    button: |
+      **${other_parties[0].name_full()}'s employer address:**
+      ${ other_parties[0].employer.address.on_one_line(bare=True) }
+    show if: other_parties[0].emp_status == "Yes"
+
+  - note: |
+      <h4>Notice and delivery</h4>
+  - Edit: other_parties.revisit
+    button: |
+      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
+
+      % for my_var in other_parties:
+        * ${ my_var.name_full() }
+      % endfor
   - Edit: has_court_date
     button: |
       **Do you already have a court date for your motion from the clerk?**
@@ -2262,6 +2428,13 @@ review:
       **Call-in phone number for remote appearance:**
       ${ phone_number_formatted(remote_phone) }
     show if: attend_court['remote'] == True
+    
+  - note: |
+      <h4>About you</h4>   
+  - Edit: users[0].name.first
+    button: |
+      **Your name:**
+      ${ users[0].name_full() }
   - Edit: hide_address
     button: |
       **Do you want to keep your address hidden?**
@@ -2464,7 +2637,7 @@ review:
       % endfor
   - Edit: other_parties.revisit
     button: |
-      **The other party: (Edit to change name, lawyer, address, and delivery info)**
+      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
 
       % for my_var in other_parties:
         * ${ my_var.name_full() }
@@ -2542,7 +2715,7 @@ review:
       % endfor
   - Edit: other_parties.revisit
     button: |
-      **The other party: (Edit to change name, lawyer, address, and delivery info)**
+      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
 
       % for my_var in other_parties:
         * ${ my_var.name_full() }
@@ -2650,3 +2823,43 @@ review:
     button: |
       **Do you want to add your e-signature to your forms?**
       ${ word(yesno(e_signature)) }
+---
+id: children revisit
+continue button field: children.revisit
+question: |
+  Edit the children you have with ${other_parties[0].name_full()}
+subquestion: |
+  ${ children.table }
+
+  % if children.number_gathered() < 7:
+  ${ children.add_action() }
+  % endif
+
+---
+table: children.table
+rows: children
+columns:
+  - Name: |
+      row_item.name_full() if defined("row_item.name.first") else ""
+  - Birthdate: |
+      row_item.birthdate if defined("row_item.birthdate") else ""
+  - Edit: |
+      action_button_html(url_action(row_item.attr_name("review_child_details")), label="Edit", icon="pencil-alt")
+delete buttons: True
+confirm: True
+
+---
+id: child details
+continue button field: x.review_child_details
+generic object: ALIndividual
+question: |
+  Edit ${ x.name_full() }'s information
+review: 
+  - Edit: x.name.first
+    button: |
+      **Name:**
+      ${ x.name_full()  }
+  - Edit: x.birthdate
+    button: |
+      **Birth date:**
+      ${ x.birthdate }
