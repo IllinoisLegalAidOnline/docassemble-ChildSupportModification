@@ -100,7 +100,7 @@ code: |
   if other_parties[0].emp_status == "Yes":
     other_parties[0].employer.name.text
 
-  debug_motion_body
+  #debug_motion_body
   
   set_progress(75)
   nav.set_section('section_delivery')
@@ -110,9 +110,9 @@ code: |
   attend_court
   set_progress(80)
   
-  if other_parties[0].idhfs_involved:
+  if idhfs_involved:
     idhfs.gather()
-  if other_parties[0].asa_involved:
+  if sa_involved:
     states_attorneys.gather()
 
   delivery_intro
@@ -147,9 +147,9 @@ code: |
   nav.set_section('section_download')
   forms_assembling
   
-  debug_motion_body_2  
-  
   snapshot_forms
+  make_motion_body()
+  make_additional_motion_body()
   get_docs_screen
 ---
 code: |
@@ -794,16 +794,16 @@ question: |
 subquestion: |
   UPDATE
 fields:
-  - no label: other_parties[0].idhfs_involved
+  - no label: idhfs_involved
     datatype: yesnoradio
 ---
 id: states attorney involvement
 question: |
-  Was the State's Attorney's office involved in an child support order?
+  Was the State's Attorney's office involved in the support order?
 subquestion: |
   UPDATE
 fields:
-  - no label: other_parties[0].asa_involved
+  - no label: sa_involved
     datatype: yesnoradio
 ---
 code: |
@@ -843,30 +843,6 @@ code: |
     return sorted( filtered_courts, key=lambda y: y[1])
 
 ---
-id: in re check
-question: |
- Does the court case have the words "**In re:**" in the name?
-subquestion: |
-  Look at the name of the case at the top of the court papers. "In re" is used in some family law cases. For example, a divorce case might be called "In re: Marriage of Jane Doe and John Doe."
-
-  UPDATE
-  
-  **Note:** If the court papers say "In re:" but also list the names of people in the case, you can select **No**. For example, if the case title is "In re: Marriage of Julia Smith and Tony Smith," the names you already entered will be put on your forms so you can select **No**.
-fields:
-  - no label: in_re_check
-    datatype: yesnoradio
----
-id: in re label
-question: |
-  What does it say after "**In re:**" on the court papers?
-subquestion: |
-  For example, the case could be called "In re: The Will of Elena Black."
-
-  **Note:** If you can't fit the full "in re:" title into the field below, you can use abbreviations or enter as much as you can. The case number should correctly identify which case you are filing into.
-fields:
-  - In re:: in_re_label
-    maxlength: 60
----
 depends on:
   - trial_court_index
 code: |
@@ -887,14 +863,6 @@ fields:
   - "IV-D case number (optional)": ivd_case_number
     maxlength: 25
     required: False
-  - Calendar (optional): calendar_number
-    maxlength: 5
-    required: False
-    help: |
-      Some Cook County cases have a "calendar" as part of how the case is identified. If your support order has this, it should be located on the first page of the order. 
-    show if: 
-      code: |
-        trial_court_index == -1    
 ---
 template: case_number_help
 subject: |
@@ -1032,21 +1000,6 @@ code: |
 ---
 id: debug motion body
 continue button field: debug_motion_body
-question: |
-  Motion text
-subquestion: |
-  So far, the motion body looks like this:
- 
-  ${ make_motion_body() }
-
-  And the additional motion body (page 2) looks like this:
-  
-  ${ make_additional_motion_body() }
-
-#  ${ motion_attachment.as_pdf(key='preview').extract_pages(last=2) }
----
-id: debug motion body
-continue button field: debug_motion_body_2
 question: |
   Motion text
 subquestion: |
@@ -1274,13 +1227,13 @@ content: |
 ---
 reconsider: True
 code: |
-  if other_parties[0].idhfs_involved:
-    if other_parties[0].asa_involved:
+  if idhfs_involved:
+    if sa_involved:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs + states_attorneys)
     else:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs)  
   else:
-    if other_parties[0].asa_involved:
+    if sa_involved:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + states_attorneys)
     else:
       delivery_parties = ALPeopleList("delivery_parties", elements = other_parties)
@@ -1687,52 +1640,28 @@ attachment:
       - "trial_court_county": ${ trial_court.address.county.upper() }
       - "trial_court_county_2": ${ trial_court.address.county }
       - "plaintiffs": |
-          % if in_re_check:
-          ${ in_re_label }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          % if users.number() > 1:
-          ${ users[0].name_full() }, et al.
-          % else:
           ${ users[0].name_full() }
-          % endif
-          % else:
-          % if other_parties.number() > 1:
-          ${ other_parties[0].name_full() }, et al.
           % else:
           ${ other_parties[0].name_full() }
-          % endif
-          % endif
           % endif
       - "defendants": |
-          % if in_re_check:
-          ${ "" }
-          % else:
-          ${users.full_names()}
-          % endif
-      - "plaintiffs_2": |
-          % if in_re_check:
-          ${ in_re_label }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          % if users.number() > 1:
-          ${ users[0].name_full() }, et al.
+          ${ other_parties[0].name_full() }
           % else:
           ${ users[0].name_full() }
           % endif
-          % else:
-          % if other_parties.number() > 1:
-          ${ other_parties[0].name_full() }, et al.
+      - "plaintiffs_2": |
+          % if party_label == 'plaintiff' or party_label == 'petitioner':
+          ${ users[0].name_full() }
           % else:
           ${ other_parties[0].name_full() }
           % endif
-          % endif
-          % endif
       - "defendants_2": |
-          % if in_re_check:
-          ${ "" }
+          % if party_label == 'plaintiff' or party_label == 'petitioner':
+          ${ other_parties[0].name_full() }
           % else:
-          ${users.full_names()}
+          ${ users[0].name_full() }
           % endif
 
       - "preview_watermark": ${ '' }
@@ -1768,7 +1697,7 @@ attachment:
           % else:
           ${ delivery_parties[0].name_full() }
           % endif
-      - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) }
+      - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) if delivery_parties[0].knows_delivery_method else "" }
       - "delivery_party1_email": ${ delivery_parties[0].delivery_email if delivery_parties[0].knows_delivery_method else '' }
       - "delivery_party1_email_efsp": ${ delivery_parties[0].delivery_efsp_email if delivery_parties[0].knows_delivery_method else '' }
       - "is_delivery_party1_hand_yes": ${ delivery_parties[0].hand_delivery if delivery_parties[0].knows_delivery_method and delivery_parties[0].physical_delivery else '' }
@@ -1828,32 +1757,16 @@ attachment:
       - "trial_court_county": ${ trial_court.address.county }
           
       - "plaintiffs": |
-          % if in_re_check:
-          ${ in_re_label }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          % if users.number() > 1:
-          ${ users[0].name_full() }, et al.
-          % else:
           ${ users[0].name_full() }
-          % endif
-          % else:
-          % if other_parties.number() > 1:
-          ${ other_parties[0].name_full() }, et al.
           % else:
           ${ other_parties[0].name_full() }
           % endif
-          % endif
-          % endif      
       - "defendants": |
-          % if in_re_check:
-          ${ "" }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          ${ other_parties.full_names() } 
+          ${ other_parties[0].name_full() }
           % else:
-          ${ users.full_names() }
-          % endif
+          ${ users[0].name_full() }
           % endif
           
       - "user__1": ${ users[0].name_full() }
@@ -1872,7 +1785,7 @@ attachment:
           % else:
           ${ x.name_full() }
           % endif
-      - "delivery_party1_mail_address_on_one_line": ${ x.address.on_one_line(bare=True) }
+      - "delivery_party1_mail_address_on_one_line": ${ x.address.on_one_line(bare=True) if x.knows_delivery_method else ""}
       - "delivery_party1_email": ${ x.delivery_email if x.knows_delivery_method else '' }
       - "delivery_party1_email_efsp": ${ x.delivery_efsp_email if x.knows_delivery_method else '' }
       - "is_delivery_party1_hand_yes": ${ x.hand_delivery if x.knows_delivery_method and x.physical_delivery else '' }
@@ -1927,32 +1840,16 @@ attachment:
   fields:
       - "trial_court_county": ${ trial_court.address.county }
       - "plaintiffs": |
-          % if in_re_check:
-          ${ in_re_label }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          % if users.number() > 1:
-          ${ users[0].name_full() }, et al.
-          % else:
           ${ users[0].name_full() }
-          % endif
-          % else:
-          % if other_parties.number() > 1:
-          ${ other_parties[0].name_full() }, et al.
           % else:
           ${ other_parties[0].name_full() }
           % endif
-          % endif
-          % endif
       - "defendants": |
-          % if in_re_check:
-          ${ "" }
-          % else:
           % if party_label == 'plaintiff' or party_label == 'petitioner':
-          ${ other_parties.full_names() } 
+          ${ other_parties[0].name_full() }
           % else:
-          ${ users.full_names() }
-          % endif
+          ${ users[0].name_full() }
           % endif
       - "user__1": ${ users[0].name_full() }
       - "user__2": ${ users[0].name_full() }
@@ -2002,7 +1899,7 @@ attachment:
           % else:
           ${ delivery_parties[0].name_full() }
           % endif
-      - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) }
+      - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) if delivery_parties[0].knows_delivery_method else ''}
       - "delivery_party1_email": ${ delivery_parties[0].delivery_email if delivery_parties[0].knows_delivery_method else '' }
       - "delivery_party1_email_efsp": ${ delivery_parties[0].delivery_efsp_email if delivery_parties[0].knows_delivery_method else '' }
       - "is_delivery_party1_hand_yes": ${ delivery_parties[0].hand_delivery if delivery_parties[0].knows_delivery_method and delivery_parties[0].physical_delivery else '' }
@@ -2058,9 +1955,27 @@ attachment:
   editable: True
   pdf template file: child_support_order.pdf
   fields:
+    - "modification_cb": ${ True }
     - "county": ${ trial_court.address.county }
-    - "petitioner__1": ${ users[0].name_full() }
-    - "respondent__1": ${ other_parties[0].name_full() }
+    - "petitioner__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].name_full() }
+        % else:
+        ${ other_parties[0].name_full() }
+        % endif
+    - "respondent__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].name_full() }
+        % else:
+        ${ users[0].name_full() }
+        % endif
+    - "case_number__1": ${ case_number }
+    - "case_number__2": ${ case_number }
+    - "case_number__3": ${ case_number }
+    - "case_number__4": ${ case_number }
+    - "case_number__5": ${ case_number }
+    - "case_number__6": ${ case_number }
+    - "case_number_4d": ${ ivd_case_number }
 ---
 attachment:
   variable name: support_information_sheet[i]
@@ -2071,24 +1986,119 @@ attachment:
   pdf template file: support_information_sheet.pdf
   fields:
     - "county": ${ trial_court.address.county }
-    - "petitioner__1": ${ users[0].name_full() }
-    - "respondent__1": ${ other_parties[0].name_full() }
-    - "petitioner__2": ${ users[0].name_full() }
-    - "user_address__2": ${ users[0].address.on_one_line(bare=True) if hide_address else "" }
-    - "user_dob": ${ users[0].birthdate }
-    - "user_phone__2": ${ phone_number_formatted(users[0].phone_number) }
-    - "user_employer": ${ users[0].employers[0].name.text if users[0].emp_status["Yes"] else "" }
-    - "user_employer_address": ${ users[0].employers[0].address.on_one_line(bare=True) if users[0].emp_status["Yes"] else "" }
-    - "user_employer_phone": ${ phone_number_formatted(users[0].employers[0].phone_number) if users[0].emp_status["Yes"] else "" }
+    - "petitioner__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].name_full() }
+        % else:
+        ${ other_parties[0].name_full() }
+        % endif
+    - "respondent__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].name_full() }
+        % else:
+        ${ users[0].name_full() }
+        % endif
 
-    - "respondent__2": ${ other_parties[0].name_full() }
-    - "resp_address": ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
-    - "resp_dob": ${ other_parties[0].birthdate }
-    - "resp_phone": ${ phone_number_formatted(other_parties[0].phone_number) }
-    - "resp_employer": ${ other_parties[0].employers[0].name.text if other_parties[0].emp_status["Yes"] else "" }
-    - "resp_employer_address": ${ other_parties[0].employers[0].address.on_one_line(bare=True) if other_parties[0].emp_status["Yes"] else "" }
-    - "resp_employer_phone": ${ phone_number_formatted(other_parties[0].employers[0].phone_number) if other_parties[0].emp_status["Yes"] else "" }
+    - "case_number__1": ${ case_number }
+    - "case_number__2": ${ case_number }
+    - "case_number_4d": ${ ivd_case_number }
+    
+    - "petitioner__2": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].name_full() }
+        % else:
+        ${ other_parties[0].name_full() }
+        % endif
+    - "pet_address__2": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].address.on_one_line(bare=True) if hide_address == False else "" }
+        % else:
+        ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
+        % endif
+      
+    - "pet_dob": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].birthdate }
+        % else:
+        ${ other_parties[0].birthdate }
+        % endif
+            
+    - "pet_phone__2": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ phone_number_formatted(users[0].phone_number) }
+        % else:
+        ${ phone_number_formatted(other_parties[0].phone_number) }
+        % endif      
+    - "pet_employer": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].employer.name.text if users[0].emp_status == "Yes" else "" }
+        % else:
+        ${ other_parties[0].employer.name.text if other_parties[0].emp_status == "Yes" else "" }
+        % endif
+        
+    - "pet_employer_address": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].employer.address.on_one_line(bare=True) if users[0].emp_status == "Yes" else "" }
+        % else:
+        ${ other_parties[0].employer.address.on_one_line(bare=True) if other_parties[0].emp_status == "Yes" else "" }
+        % endif
+    - "pet_employer_phone": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ phone_number_formatted(users[0].employer.phone_number) if users[0].emp_status == "Yes" else "" }
+        % else:
+        ${ phone_number_formatted(other_parties[0].employer.phone_number) if other_parties[0].emp_status == "Yes" else "" }
+        % endif
 
+
+    - "pet_payor": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" else "" }
+    - "pet_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" else "" }
+    
+    - "respondent__2": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].name_full() }
+        % else:
+        ${ users[0].name_full() }
+        % endif
+    - "resp_address": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
+        % else:
+        ${ users[0].address.on_one_line(bare=True) if hide_address == False else "" }
+        % endif
+    - "resp_dob": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].birthdate }
+        % else:
+        ${ users[0].birthdate }
+        % endif
+    - "resp_phone": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ phone_number_formatted(other_parties[0].phone_number) }
+        % else:
+        ${ phone_number_formatted(users[0].phone_number) }
+        % endif
+    - "resp_employer": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].employer.name.text if other_parties[0].emp_status == "Yes" else "" }
+        % else:
+        ${ users[0].employer.name.text if users[0].emp_status == "Yes" else "" }
+        % endif
+    - "resp_employer_address": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].employer.address.on_one_line(bare=True) if other_parties[0].emp_status == "Yes" else "" }
+        % else:
+        ${ users[0].employer.address.on_one_line(bare=True) if users[0].emp_status == "Yes" else "" }
+        % endif
+    - "resp_employer_phone": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ phone_number_formatted(other_parties[0].employer.phone_number) if other_parties[0].emp_status == "Yes" else "" }
+        % else:
+        ${ phone_number_formatted(users[0].employer.phone_number) if users[0].emp_status == "Yes" else "" }
+        % endif
+
+    - "res_payor": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" else "" }
+    - "res_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" else "" }
+    
     - "child_name_0": ${ children[0].name_full() }
     - "child_dob_0": ${ children[0].birthdate }
     - "child_name_1": ${ children[1].name_full() }
@@ -2140,9 +2150,19 @@ attachment:
   editable: True  
   pdf template file: income_withholding_letter_to_employer.pdf
   fields:
-    - "petitioner__1": ${ users[0].name_full() }
-    - "respondent__1": ${ other_parties[0].name_full() }
-
+    - "petitioner__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ users[0].name_full() }
+        % else:
+        ${ other_parties[0].name_full() }
+        % endif
+    - "respondent__1": |
+        % if party_label == 'plaintiff' or party_label == 'petitioner':
+        ${ other_parties[0].name_full() }
+        % else:
+        ${ users[0].name_full() }
+        % endif
+    - "case_number__1": ${ case_number }
 ---
 ############### Review page
 id: review screen
@@ -2173,7 +2193,7 @@ review:
     button: |
       **Name of child support order:**
       % if case_type == "other":
-      Other: ${ other_case_type }
+      ${ other_case_type }
       % else:
       ${ case_type }
       % endif      
@@ -2192,14 +2212,6 @@ review:
       % for my_var in other_parties:
         * ${ my_var.name_full() }
       % endfor
-  - Edit: in_re_check
-    button: |
-      **Does the court case have "In re:" in the name?**  
-      ${word(yesno(in_re_check))}
-  - Edit: in_re_label
-    button: |
-      **In re:** ${in_re_label}
-    show if: in_re_check
   - Edit: 
       - trial_court_index
       - recompute:
@@ -2234,7 +2246,13 @@ review:
     button: |
       **Case number:**
       ${ case_number }   
-
+      **IV-D Case number:**
+      % if ivd_case_number == "":
+      None entered
+      % else:
+      ${ ivd_case_number }
+      % endif
+      
   - note: |
       <h4>Child support</h4>
   - Edit: order_date
@@ -2314,7 +2332,6 @@ review:
       No change to the child support amount.
       % endif
 
-      
   - note: |
       <h4>About your children</h4>
   - Edit: children.revisit
@@ -2331,10 +2348,6 @@ review:
     button: |
       **The other parent's name:**
       ${other_parties[0].name_full()}
-  - Edit: other_parties[0].birthdate
-    button: |
-      **When was ${other_parties[0].name_full()} born?**
-      ${ other_parties[0].birthdate }
   - Edit: knows_other_parent_address
     button: |
       **Do you know ${other_parties[0].name_full()}'s current address?**
@@ -2352,6 +2365,10 @@ review:
       % else:
       ${ "None entered" }
       % endif   
+  - Edit: other_parties[0].birthdate
+    button: |
+      **When was ${other_parties[0].name_full()} born?**
+      ${ other_parties[0].birthdate }
   - Edit: other_parties[0].emp_status
     button: |
       **Is ${other_parties[0].name_full()} employed?**
@@ -2376,13 +2393,6 @@ review:
 
   - note: |
       <h4>Notice and delivery</h4>
-  - Edit: other_parties.revisit
-    button: |
-      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
   - Edit: has_court_date
     button: |
       **Do you already have a court date for your motion from the clerk?**
@@ -2428,7 +2438,33 @@ review:
       **Call-in phone number for remote appearance:**
       ${ phone_number_formatted(remote_phone) }
     show if: attend_court['remote'] == True
+
+  - Edit: idhfs_involved
+    button: |
+      **Was IDHFS involved in an earlier adminsitrative child support order?**
+      ${ word(yesno(idhfs_involved)) }
+  - Edit: idhfs.revisit
+    button: |
+      **Edit to change IDHFS delivery information**
+    show if: idhfs_involved
+  
+  - Edit: sa_involved
+    button: |
+      **Was the State's Attorney's office involved in the child support order?**
+      ${ word(yesno(sa_involved)) }
+  - Edit: states_attorneys.revisit
+    button: |
+      **Edit to change State's Attorney's delivery information**
+    show if: sa_involved
     
+  - Edit: other_parties.revisit
+    button: |
+      **The other parent: (Edit to change name, lawyer, and delivery info)**
+
+      % for my_var in other_parties:
+        * ${ my_var.name_full() }
+      % endfor
+  
   - note: |
       <h4>About you</h4>   
   - Edit: users[0].name.first
@@ -2474,10 +2510,118 @@ review:
       **Your email:**
       ${ users[0].email }
     show if: users[0].has_email_address
+  - Edit: users[0].birthdate
+    button: |
+      **When were you born?**
+      ${ users[0].birthdate }
+
+  - Edit: users[0].emp_status
+    button: |
+      **Are you currently employed?**
+      ${ users[0].emp_status }
+  - Edit: users[0].employer.name.text
+    button: |
+      **Your employer name and phone number:**
+      ${ users[0].employer.name.text }, ${ phone_number_formatted(users[0].employer.phone_number)}
+    show if: users[0].emp_status == "Yes"
+  - Edit: users[0].employer.address.address
+    button: |
+      **Your employer's address:**
+      ${ users[0].employer.address.on_one_line(bare=True) }
+    show if: users[0].emp_status == "Yes"
+  
   - Edit: e_signature
     button: |
       **Do you want to add your e-signature to your forms?**
       ${ word(yesno(e_signature)) }
+---
+id: case details review screen
+section: Case details
+event: section_case
+question: |
+  Case details
+subquestion: |
+  Edit your answers below.
+review:
+  - Edit: order_type
+    button: |
+      **Type of child support order:**
+      % if order_type == "admin":
+      Administrative IV-D (through IDHFS)
+      % endif
+      % if order_type == "judicial":
+      Judicial (through court)
+      % endif
+      % if order_type == "registered":
+      IV-D support order registered on ${ registration_date }
+      % endif
+      % if order_type == "idk":
+      I'm not sure.
+      % endif        
+  - Edit: case_type
+    button: |
+      **Name of child support order:**
+      % if case_type == "other":
+      ${ other_case_type }
+      % else:
+      ${ case_type }
+      % endif      
+  - Edit: users[0].name.first
+    button: |
+      **Your name:**
+      ${ users[0].name_full() }
+  - Edit: party_label
+    button: |
+      **Your role in the case:**
+      ${ party_label }
+  - Edit: other_parties.revisit
+    button: |
+      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
+
+      % for my_var in other_parties:
+        * ${ my_var.name_full() }
+      % endfor
+  - Edit: 
+      - trial_court_index
+      - recompute:
+        - trial_court
+    button: |
+      **County where this case is filed:**
+      ${ trial_court.address.county }
+  - Edit: cook_district
+    button: |
+      **Cook County courthouse:**
+      % if cook_district == "15":
+      ${ "Daley Center, 50 W. Washington Street, Chicago" }
+      % elif cook_district == "16":
+      ${ "Second Municipal District, 5600 Old Orchard Road, Skokie" }
+      % elif cook_district == "17":
+      ${ "Third Municipal District, 2121 Euclid Avenue, Rolling Meadows" }
+      % elif cook_district == "18":
+      ${ "Fourth Municipal District, 1500 Maybrook Drive, Maywood" }
+      % elif cook_district == "19":
+      ${ "Fifth Municipal District, 10220 S. 76th Avenue, Bridgeview" }
+      % elif cook_district == "20":
+      ${ "Sixth Municipal District, 16501 South Kedzie Parkway, Markham" }
+      % elif cook_district == "21":
+      ${ "Domestic Violence Court, 555 W. Harrison Street, Chicago" }
+      % elif cook_district == "22":
+      ${ "George N. Leighton Criminal Court Building, 2600 S. California Avenue, Chicago" }
+      % else:
+      ${ "Juvenile Center, 2245 West Ogden Avenue, Chicago" }
+      % endif      
+    show if: trial_court_index == -1      
+  - Edit: case_number
+    button: |
+      **Case number:**
+      ${ case_number }   
+      **IV-D Case number:**
+      % if ivd_case_number == "":
+      None entered
+      % else:
+      ${ ivd_case_number }
+      % endif
+
 ---
 #needs: yes_no_unknown
 id: delivery party review screen
@@ -2485,18 +2629,15 @@ section: Notice and delivery
 continue button field: x.review_delivery
 generic object: ALIndividual
 question: |
-  Edit ${ x.name_full() }'s information
+  Edit ${ x.name_full() }'s delivery information
 subquestion: |  
-  % if x == users[0]:
-  Edit your address, phone number, and email address in the [**About you**](${ url_action('section_about_you') }) section.
-  % else:
   If you don't see lawyer, address, or delivery information, then it might not be entered yet. Continue the program to answer all the questions.
-  % endif
 review: 
   - Edit: x.name.first
     button: |
-      **Party name:**
+      **Name:**
       ${ x.name_full()  }
+    show if: x != idhfs[0] and x != states_attorneys[0]
   - Edit: x.is_represented
     button: |
       **Does ${ x.name_full() } have a lawyer?**
@@ -2590,136 +2731,252 @@ confirm: True
 ---
 id: other parties review screen
 continue button field: other_parties.revisit
-section: Case info
+section: Notice and delivery
 question: |
-  % if party_label == "plaintiff":
-    Edit the defendants
-  % elif party_label == "petitioner":
-    Edit the respondents
-  % elif party_label == "defendant":
-    Edit the plaintiffs
-  % else:
-    Edit the petitioners
-  % endif
+  Edit the other parent's delivery information
 subquestion: |
   ${ other_parties.table }
-
-  ${ other_parties.add_action() }
 ---
 table: other_parties.table
 rows: other_parties
 columns:
   - Name: |
       row_item.name_full() if defined("row_item.name.first") else ""
-  - Party, lawyer, address, and delivery info: |
+  - Lawyer, address, and delivery info: |
       action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
 delete buttons: True
 confirm: True
 ---
-id: case info review screen
-section: Case info
-event: section_case_info
+id: idhfs review screen
+continue button field: idhfs.revisit
+section: Notice and delivery
 question: |
-  Case info
+  Edit the IDHFS delivery information
+subquestion: |
+  ${ idhfs.table }
+---
+table: idhfs.table
+rows: idhfs
+columns:
+  - Name: |
+      "The " + row_item.name_full()[4:] if defined("row_item.name.first") else ""
+  - Lawyer and delivery info: |
+      action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
+delete buttons: True
+confirm: True
+---
+id: sa review screen
+continue button field: states_attorneys.revisit
+section: Notice and delivery
+question: |
+  Edit the State's Attorney's delivery information
+subquestion: |
+  ${ states_attorneys.table }
+---
+table: states_attorneys.table
+rows: states_attorneys
+columns:
+  - Name: |
+      "The " + row_item.name_full()[4:] if defined("row_item.name.first") else ""
+  - Lawyer and delivery info: |
+      action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
+delete buttons: True
+confirm: True
+
+---
+id: child support review screen
+section: Child support
+event: section_child_support
+question: |
+  Child support
 subquestion: |
   Edit your answers below.
 review: 
-  - Edit: party_label
+  - Edit: order_date
     button: |
-      **Party label:**
-      ${ party_label }
-  - Edit: users.revisit
+      **Child support order date:**
+      ${ order_date}
+  - Edit: payor_parent
     button: |
-      **Your party: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in users:
-        * ${ my_var.name_full() }
-      % endfor
-  - Edit: other_parties.revisit
-    button: |
-      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
-  - Edit: in_re_check
-    button: |
-      **Does the court case have "In re:" in the name?**  
-      ${word(yesno(in_re_check))}
-  - Edit: in_re_label
-    button: |
-      **In re:** ${in_re_label}
-    show if: in_re_check
-  - Edit: 
-      - trial_court_index
-      - recompute:
-        - trial_court
-    button: |
-      **County where this case is filed:**
-      ${ trial_court.address.county }
-  - Edit: cook_district
-    button: |
-      **Cook County courthouse:**
-      % if cook_district == "15":
-      ${ "Daley Center, 50 W. Washington Street, Chicago" }
-      % elif cook_district == "16":
-      ${ "Second Municipal District, 5600 Old Orchard Road, Skokie" }
-      % elif cook_district == "17":
-      ${ "Third Municipal District, 2121 Euclid Avenue, Rolling Meadows" }
-      % elif cook_district == "18":
-      ${ "Fourth Municipal District, 1500 Maybrook Drive, Maywood" }
-      % elif cook_district == "19":
-      ${ "Fifth Municipal District, 10220 S. 76th Avenue, Bridgeview" }
-      % elif cook_district == "20":
-      ${ "Sixth Municipal District, 16501 South Kedzie Parkway, Markham" }
-      % elif cook_district == "21":
-      ${ "Domestic Violence Court, 555 W. Harrison Street, Chicago" }
-      % elif cook_district == "22":
-      ${ "George N. Leighton Criminal Court Building, 2600 S. California Avenue, Chicago" }
+      **Who was ordered to pay child support in the ${ order_date } order?**
+      % if payor_parent == "other":
+      ${other_parties[0].name_full()}
       % else:
-      ${ "Juvenile Center, 2245 West Ogden Avenue, Chicago" }
-      % endif      
-    show if: trial_court_index == -1      
-  - Edit: case_number
+      Me
+      % endif
+  - Edit: support_amount
     button: |
-      **Case number:**
-      ${ case_number }   
+      **Payment amount and frequency:**
+      $${ thousands(support_amount, show_decimals=True) }, paid ${ support_frequency }
+  - Edit: is_support_current
+    button: |
+      **Are the child support payments up to date?**
+      % if is_support_current:
+      Yes
+      % else:
+      No, $${ thousands(arrears_amount, show_decimals=True) } is overdue.
+      % endif
+  - Edit: user_income_change
+    button: |
+      **Why do you want to change child support?**
+      
+      % if user_income_change:
+      % if user_income_change_increase:
+        * My income **increased** since the ${ order_date } order.
+      % else:
+        * My income **decreased** since the ${ order_date } order.
+      % endif
+      % endif      
+      % if other_parent_income_change:
+      % if other_parent_income_change_increase:
+        * ${ other_parties[0].name_full() }'s income **increased** since the ${ order_date } order.
+      % else:
+        * ${ other_parties[0].name_full() }'s income **decreased** since the ${ order_date } order.
+      % endif
+      % endif      
+      % if custody_change:
+        * There has been a change in the allocation of parental responsibilities (custody).
+      % endif
+      % if health_insurance_change:
+      % if health_insurance_parent == "Me":
+        * The supporting parent's ability to maintain health insurance coverage has changed. I should maintain health insureance for the children.
+      % else:
+        * The supporting parent's ability to maintain health insurance coverage has changed. ${ other_parties[0].name_full() } should maintain health insureance for the children.
+      % endif
+      % endif      
+      % if custody_change:
+        * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
+      % endif
+      % if costs_change:
+        * The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
+      % endif
+      % if emancipation_change:
+        * One or more of the children have become emancipated on ${ emancipation_date }.
+      % endif
+      % if other_change:
+        * Substantial change in circumstances: ${ other_change_text.replace("\n", " ").replace("\r", " ") }
+      % endif
+  - Edit: support_amount_change
+    button: |
+      **How do you want the child support payment amount to change?**
+      % if support_amount_change == "increase":
+      I want the child support payment amount to **increase**.
+      % elif support_amount_change == "decrease":
+      I want the child support payment amount to **decrease**.
+      % elif  support_amount_change == "end":
+      I want the child support to **end** for all children on the support order.
+      % else:
+      No change to the child support amount.
+      % endif
 ---
-id: motion review screen
-section: Motion details
-event: section_motion
+id: about your children review screen
+section: About your children
+event: section_about_children
 question: |
-  Motion details
+  About your children
 subquestion: |
   Edit your answers below.
 review:
-  - Edit: motion_body
+  - Edit: children.revisit
     button: |
-      **Motion text:**
-      ${ motion_body }
+      **Your children with ${other_parties[0].name_full()}: (Edit to change names and details)**
+
+      % for my_var in children:
+        * ${ my_var.name_full() }
+      % endfor
+
+---
+id: children revisit
+continue button field: children.revisit
+question: |
+  Edit the children you have with ${other_parties[0].name_full()}
+subquestion: |
+  ${ children.table }
+
+  % if children.number_gathered() < 7:
+  ${ children.add_action() }
+  % endif
+
+---
+id: child details
+continue button field: x.review_child_details
+generic object: ALIndividual
+question: |
+  Edit ${ x.name_full() }'s information
+review: 
+  - Edit: x.name.first
+    button: |
+      **Name:**
+      ${ x.name_full()  }
+  - Edit: x.birthdate
+    button: |
+      **Birth date:**
+      ${ x.birthdate }
+---
+id: about the other parent
+section: About the other parent
+event: section_about_other_parent
+question: |
+  About the other parent
+subquestion: |
+  Edit your answers below.
+review:
+  - Edit: other_parties[0].name.first
+    button: |
+      **The other parent's name:**
+      ${other_parties[0].name_full()}
+  - Edit: knows_other_parent_address
+    button: |
+      **Do you know ${other_parties[0].name_full()}'s current address?**
+      ${ word(yesno(knows_other_parent_address)) }
+  - Edit: other_parties[0].address.address
+    button: |
+      **${other_parties[0].name_full()}'s current address:**
+      ${ other_parties[0].address.on_one_line(bare=True) }
+    show if: knows_other_parent_address
+  - Edit: other_parties[0].phone_number
+    button: |
+      **${other_parties[0].name_full()}'s phone number:**
+      % if other_parties[0].phone_number != "":
+      ${ phone_number_formatted(other_parties[0].phone_number) }      
+      % else:
+      ${ "None entered" }
+      % endif   
+  - Edit: other_parties[0].birthdate
+    button: |
+      **When was ${other_parties[0].name_full()} born?**
+      ${ other_parties[0].birthdate }
+  - Edit: other_parties[0].emp_status
+    button: |
+      **Is ${other_parties[0].name_full()} employed?**
+
+      % if other_parties[0].emp_status == "Yes":
+      * Yes
+      % elif other_parties[0].emp_status == "No":
+      * No
+      % else:
+      * I don't know.
+      % endif
+  - Edit: other_parties[0].employer.name.text
+    button: |
+      **${other_parties[0].name_full()}'s employer name and phone number:**
+      ${ other_parties[0].employer.name.text }, ${ phone_number_formatted(other_parties[0].employer.phone_number)}
+    show if: other_parties[0].emp_status == "Yes"
+  - Edit: other_parties[0].employer.address.address
+    button: |
+      **${other_parties[0].name_full()}'s employer address:**
+      ${ other_parties[0].employer.address.on_one_line(bare=True) }
+    show if: other_parties[0].emp_status == "Yes"  
+  
 ---
 id: delivery info review screen
 section: Notice and delivery
 event: section_delivery
 question: |
-  Notice and delivery details
+  Notice and delivery
 subquestion: |
   Edit your answers below.
 review:
-  - Edit: users.revisit
-    button: |
-      **Your party: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in users:
-        * ${ my_var.name_full() }
-      % endfor
-  - Edit: other_parties.revisit
-    button: |
-      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
   - Edit: has_court_date
     button: |
       **Do you already have a court date for your motion from the clerk?**
@@ -2729,7 +2986,6 @@ review:
       **Motion court date on:**
       ${ hearing_date } at ${ format_time(hearing_time, "h:mm a") }
     show if: has_court_date
-
   - Edit: attend_court
     button: |
       **How can parties attend court?**
@@ -2766,6 +3022,32 @@ review:
       **Call-in phone number for remote appearance:**
       ${ phone_number_formatted(remote_phone) }
     show if: attend_court['remote'] == True
+
+  - Edit: idhfs_involved
+    button: |
+      **Was IDHFS involved in an earlier adminsitrative child support order?**
+      ${ word(yesno(idhfs_involved)) }
+  - Edit: idhfs.revisit
+    button: |
+      **Edit to change IDHFS delivery information**
+    show if: idhfs_involved
+  
+  - Edit: sa_involved
+    button: |
+      **Was the State's Attorney's office involved in the child support order?**
+      ${ word(yesno(sa_involved)) }
+  - Edit: states_attorneys.revisit
+    button: |
+      **Edit to change State's Attorney's delivery information**
+    show if: sa_involved
+    
+  - Edit: other_parties.revisit
+    button: |
+      **The other parent: (Edit to change name, lawyer, and delivery info)**
+
+      % for my_var in other_parties:
+        * ${ my_var.name_full() }
+      % endfor
       
 ---
 id: about you review screen
@@ -2819,47 +3101,21 @@ review:
       **Your email:**
       ${ users[0].email }
     show if: users[0].has_email_address
+  - Edit: users[0].emp_status
+    button: |
+      **Are you currently employed?**
+      ${ users[0].emp_status }
+  - Edit: users[0].employer.name.text
+    button: |
+      **Your employer name and phone number:**
+      ${ users[0].employer.name.text }, ${ phone_number_formatted(users[0].employer.phone_number)}
+    show if: users[0].emp_status == "Yes"
+  - Edit: users[0].employer.address.address
+    button: |
+      **Your employer's address:**
+      ${ users[0].employer.address.on_one_line(bare=True) }
+    show if: users[0].emp_status == "Yes"
   - Edit: e_signature
     button: |
       **Do you want to add your e-signature to your forms?**
       ${ word(yesno(e_signature)) }
----
-id: children revisit
-continue button field: children.revisit
-question: |
-  Edit the children you have with ${other_parties[0].name_full()}
-subquestion: |
-  ${ children.table }
-
-  % if children.number_gathered() < 7:
-  ${ children.add_action() }
-  % endif
-
----
-table: children.table
-rows: children
-columns:
-  - Name: |
-      row_item.name_full() if defined("row_item.name.first") else ""
-  - Birthdate: |
-      row_item.birthdate if defined("row_item.birthdate") else ""
-  - Edit: |
-      action_button_html(url_action(row_item.attr_name("review_child_details")), label="Edit", icon="pencil-alt")
-delete buttons: True
-confirm: True
-
----
-id: child details
-continue button field: x.review_child_details
-generic object: ALIndividual
-question: |
-  Edit ${ x.name_full() }'s information
-review: 
-  - Edit: x.name.first
-    button: |
-      **Name:**
-      ${ x.name_full()  }
-  - Edit: x.birthdate
-    button: |
-      **Birth date:**
-      ${ x.birthdate }
