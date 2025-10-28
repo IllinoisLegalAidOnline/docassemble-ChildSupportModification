@@ -114,6 +114,7 @@ code: |
     idhfs.gather()
   if sa_involved:
     states_attorneys.gather()
+  #set_agency_name()
 
   delivery_intro
   for person in delivery_parties:
@@ -164,6 +165,10 @@ code: |
     pass
 
   stuff_to_snapshot['zip'] = showifdef('users[0].address.zip')
+
+  stuff_to_snapshot['idhfs_involved'] = showifdef('idhfs_involved')
+  
+  stuff_to_snapshot['state_involved'] = showifdef('sa_involved')
 
   stuff_to_snapshot['downloaded_forms'] = showifdef('forms_assembling')
   
@@ -797,14 +802,24 @@ fields:
   - no label: idhfs_involved
     datatype: yesnoradio
 ---
+sets:
+  - states_attorneys[0].name.first
 id: states attorney involvement
 question: |
-  Was the State's Attorney's office involved in the support order?
+  Was the State's Attorney's or Attorney General's office involved in the support order?
 subquestion: |
   UPDATE
 fields:
   - no label: sa_involved
     datatype: yesnoradio
+  - Which state agency?: states_attorneys[0].name.first
+    datatype: radio
+    choices:
+      - The State's Attorney: "the Illinois State's Attorney"
+      - The Attorney General's office: "the Attorney General's office"
+    show if:
+      variable: sa_involved
+      is: True
 ---
 code: |
   idhfs[0].name.first = "the Illinois Department of Healthcare and Family Services"
@@ -815,12 +830,23 @@ code: |
     idhfs.there_is_another = False
 ---
 code: |
-  states_attorneys[0].name.first = "the Illinois State's Attorney"
+  states_attorneys[0].name.first
   states_attorneys[i].complete = True
 ---
 code: |
   if states_attorneys.number() == 1:
     states_attorneys.there_is_another = False
+---
+# might be able to delete this function - not in use as of 10/28/25 2:45PM
+code: |
+  def set_agency_name():
+    
+    if il_agency == "sa":
+      states_attorneys[0].name.first = "the Illinois State's Attorney"
+    else:
+      states_attorneys[0].name.first = "the Attorney General's office"
+  
+    return True
 ---
 id: trial court county
 continue button field: case_county
@@ -916,7 +942,7 @@ code: |
     motion_body += "5. The Judgment or Order provided for the support of the following child(ren):\n \n"
   
     for child in children:
-      motion_body += "\t* " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
+      motion_body += "     \u2022 " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
     
     return motion_body
 ---
@@ -934,59 +960,59 @@ code: |
   
     if user_income_change:
       if user_income_change_increase:
-        additional_motion_body += "\t* My income has increased.\n"
+        additional_motion_body += "     \u2022 My income has increased.\n"
       else:
-        additional_motion_body += "\t* My income has decreased.\n"  
+        additional_motion_body += "     \u2022 My income has decreased.\n"  
   
     if other_parent_income_change:
       if other_parent_income_change_increase:
-        additional_motion_body += "\t* " + other_parties[0].name_full() + "'s income has increased.\n"
+        additional_motion_body += "     \u2022 " + other_parties[0].name_full() + "'s income has increased.\n"
       else:
-        additional_motion_body += "\t* " + other_parties[0].name_full() + "'s income has decreased.\n"  
+        additional_motion_body += "     \u2022 " + other_parties[0].name_full() + "'s income has decreased.\n"  
     if custody_change:
-      additional_motion_body += "\t* There has been a change in the allocation of parental responsibilities (custody).\n"   
+      additional_motion_body += "     \u2022 There has been a change in the allocation of parental responsibilities (custody).\n"   
   
     if health_insurance_change:
-      additional_motion_body += "\t* The supporting parent's ability to maintain health insurance coverage has changed.\n" 
+      additional_motion_body += "     \u2022 The supporting parent's ability to maintain health insurance coverage has changed.\n" 
   
     if graduation_change:
-      additional_motion_body += "\t* One or more of the children are now over the age of 18 and have or will have graduated from high school on " + graduation_date + ".\n"
+      additional_motion_body += "     \u2022 One or more of the children are now over the age of 18 and have or will have graduated from high school on " + graduation_date + ".\n"
   
     if costs_change:
-      additional_motion_body += "\t* The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.\n"
+      additional_motion_body += "     \u2022 The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.\n"
     
     if emancipation_change:
-      additional_motion_body += "\t* One or more of the children have become emancipated on " + emancipation_date + ".\n" 
+      additional_motion_body += "     \u2022 One or more of the children have become emancipated on " + emancipation_date + ".\n" 
   
     if other_change:
-      additional_motion_body += "\t* " + other_change_text + "\n"
+      additional_motion_body += "     \u2022 " + other_change_text + "\n"
   
     additional_motion_body += "\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
   
     if graduation_change:
-      additional_motion_body += "* The existing child support order is terminated for the child(ren) who have reached the age of 18 and have or will have graduated from high school.\n"
+      additional_motion_body += "     \u2022 The existing child support order is terminated for the child(ren) who have reached the age of 18 and have or will have graduated from high school.\n"
       if support_amount_change != "end":
-        additional_motion_body += "\t* There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+        additional_motion_body += "     \u2022 There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
     
     if emancipation_change:
-      additional_motion_body += "* The existing child support order is terminated for the child(ren) who have become emancipated.\n" 
+      additional_motion_body += "     \u2022 The existing child support order is terminated for the child(ren) who have become emancipated.\n" 
       if support_amount_change != "end":
-        additional_motion_body += "\t* There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+        additional_motion_body += "     \u2022 There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
     
     if support_amount_change == "increase":
-      additional_motion_body += "* The existing child support order is increased to reflect the changes in the parties' obligations, conditions, and abilities to the percentage of net income as provided by statute.\n"
+      additional_motion_body += "     \u2022 The existing child support order is increased to reflect the changes in the parties' obligations, conditions, and abilities to the percentage of net income as provided by statute.\n"
   
     if support_amount_change == "decrease":
-      additional_motion_body += "* The existing child support order is reduced to reflect the changes in the parties' obligations, conditions, and abilities.\n"
+      additional_motion_body += "     \u2022 The existing child support order is reduced to reflect the changes in the parties' obligations, conditions, and abilities.\n"
   
     if health_insurance_change:
       if health_insurance_parent == "Me":
-        additional_motion_body += "* That " + users[0].name_full()
+        additional_motion_body += "     \u2022 That " + users[0].name_full()
       else:
-        additional_motion_body += "* That " + other_parties[0].name_full()
+        additional_motion_body += "     \u2022 That " + other_parties[0].name_full()
       additional_motion_body += " will maintain health insurance for the child(ren), and that the Court determines the amount of health insurance each party should pay.\n"
   
-    additional_motion_body += "* Enter such other orders as may be necessary and appropriate."
+    additional_motion_body += "     \u2022 Enter such other orders as may be necessary and appropriate."
 
     return additional_motion_body
 ---
@@ -1094,7 +1120,7 @@ question: |
 subquestion: |
   You must let them know about your motion and when you will present it to the judge. If they have a lawyer, you must let their lawyer know.
 
-  If the Illinois Department of Healthcare and Family Services (IDHFS) was involved in an earlier administrative support order, you must notify them. Also, if the State's Attorney's office was involved in the earlier support order, they must be notified.
+  If the Illinois Department of Healthcare and Family Services (IDHFS) was involved in an earlier administrative support order, they may need to be notified. Also, if the State's Attorney's office was involved in the earlier support order, they must be notified.
 
   **Note:** You must deliver your forms before the court date when you will present your motion to the judge.
 ---
@@ -1554,6 +1580,7 @@ content: |
   [Illinois Legal Aid Online](https://www.illinoislegalaid.org)
 ---
 objects:
+  - ilao_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
   - motion_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
   - motion_attachment: ALDocument.using(title="Motion", filename="motion.pdf", has_addendum=False)
   - notice_attachment: ALDocument.using(title="Notice of Court Date for Motion", filename="notice_of_court_date.pdf", has_addendum=False)
@@ -1594,27 +1621,36 @@ code: |
 
 ---
 code: |
+  ilao_instructions.enabled = True
   motion_instructions.enabled = True
+  motion_instructions_bundle.enabled = True
   motion_attachment.enabled = True  
   motion_single_pdf_bundle.enabled = True
   
   notice_attachment.enabled = True
   notice_single_pdf_bundle.enabled = True
 
-  child_support_order.enabled = True
-  support_information_sheet.enabled = True
-  income_withholding_instructions.enabled = True
-  income_withholding_for_support.enabled = True
-  income_withholding_letter_to_employer.enabled = True  
-
+  if children.number() == 1 and (graduation_change or emancipation_change):
+    child_support_order.enabled = False
+    support_information_sheet.enabled = False
+    income_withholding_instructions.enabled = False
+    income_withholding_for_support.enabled = False
+    income_withholding_letter_to_employer.enabled = False  
+  else:
+    child_support_order.enabled = True
+    support_information_sheet.enabled = True
+    income_withholding_instructions.enabled = True
+    income_withholding_for_support.enabled = True
+    income_withholding_letter_to_employer.enabled = True
 
 ---
 objects:
-  - al_user_bundle: ALDocumentBundle.using(elements=[motion_instructions, motion_single_pdf_bundle, notice_single_pdf_bundle, child_support_order, support_information_sheet, income_withholding_instructions, income_withholding_for_support, income_withholding_letter_to_employer], filename="motion.pdf", title="All forms")
+  - al_user_bundle: ALDocumentBundle.using(elements=[motion_instructions_bundle, motion_single_pdf_bundle, notice_single_pdf_bundle, child_support_order, support_information_sheet, income_withholding_instructions, income_withholding_for_support, income_withholding_letter_to_employer], filename="motion.pdf", title="All forms")
   - al_court_bundle: ALDocumentBundle.using(elements=[motion_single_pdf_bundle, notice_single_pdf_bundle, child_support_order, support_information_sheet, income_withholding_instructions, income_withholding_for_support, income_withholding_letter_to_employer], filename="motion.pdf", title="Motion")
 
 ---
 objects:
+  - motion_instructions_bundle: ALDocumentBundle.using(elements=[ilao_instructions, motion_instructions], filename="instructions.pdf", title="Instructions")
   - motion_single_pdf_bundle: ALDocumentBundle.using(elements=[motion_attachment, additional_delivery_bundle], filename="motion.pdf", title="Motion")
   - notice_single_pdf_bundle: ALDocumentBundle.using(elements=[notice_attachment, additional_delivery_bundle], filename="notice.pdf", title="Notice of Court Date for Motion")
 
@@ -1626,6 +1662,16 @@ attachment:
   skip undefined: True
   editable: False
   pdf template file: motion_instructions.pdf
+  fields:
+      - "fake": ${ "" }
+---
+attachment:
+  variable name: ilao_instructions[i]
+  name: ilao_instructions
+  filename: ilao-instructions
+  skip undefined: True
+  editable: False
+  pdf template file: ilao_instructions.pdf
   fields:
       - "fake": ${ "" }
 ---
@@ -2452,11 +2498,16 @@ review:
   
   - Edit: sa_involved
     button: |
-      **Was the State's Attorney's office involved in the child support order?**
+      **Was the State's Attorney's or Attorney General's office involved in the support order?**
       ${ word(yesno(sa_involved)) }
+  - Edit: sa_involved
+    button: |
+      **Which state agency was involved?**
+      ${ states_attorneys[0].name.first }
+    show if: sa_involved
   - Edit: states_attorneys.revisit
     button: |
-      **Edit to change State's Attorney's delivery information**
+      **Edit to change ${ states_attorneys[0].name.first }'s delivery information**
     show if: sa_involved
     
   - Edit: other_parties.revisit
@@ -2771,7 +2822,7 @@ id: sa review screen
 continue button field: states_attorneys.revisit
 section: Notice and delivery
 question: |
-  Edit the State's Attorney's delivery information
+  Edit ${ states_attorneys[0].name.first }'s delivery information
 subquestion: |
   ${ states_attorneys.table }
 ---
@@ -3036,13 +3087,17 @@ review:
   
   - Edit: sa_involved
     button: |
-      **Was the State's Attorney's office involved in the child support order?**
+      **Was the State's Attorney's or Attorney General's office involved in the support order?**
       ${ word(yesno(sa_involved)) }
+  - Edit: sa_involved
+    button: |
+      **Which state agency was involved?**
+      ${ states_attorneys[0].name.first }    
+    show if: sa_involved
   - Edit: states_attorneys.revisit
     button: |
-      **Edit to change State's Attorney's delivery information**
-    show if: sa_involved
-    
+      **Edit to change ${ states_attorneys[0].name.first }'s delivery information**
+    show if: sa_involved    
   - Edit: other_parties.revisit
     button: |
       **The other parent: (Edit to change name, lawyer, and delivery info)**
