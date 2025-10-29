@@ -535,6 +535,9 @@ fields:
     show if:
       variable: other_change
       is: True
+validation code: |
+  if user_income_change == False and other_parent_income_change == False and custody_change == False and health_insurance_change == False and graduation_change == False and costs_change == False and emancipation_change == False and other_change == False:
+    validation_error("You must select at least one reason.", field="other_change")      
 ---
 id: increase or decrease support
 question: |
@@ -916,7 +919,7 @@ content: |
 sets: motion_body
 code: |
   def make_motion_body():
-    motion_body = "I am asking this Honorable Court, pursuant to 750 ILCS 5/510, to modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
+    motion_body = users[0].name_full() + "asks this Honorable Court, pursuant to 750 ILCS 5/510, to modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
   
     motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
   
@@ -1004,20 +1007,22 @@ code: |
   
     if graduation_change:
       additional_motion_body += "     \u2022 The existing child support order is terminated for the children who have reached the age of 18 and have or will have graduated from high school.\n"
-      if support_amount_change != "end":
-        additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
+      if children.number() > 1:
+        if support_amount_change != "end":
+          additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
     
     if emancipation_change:
       additional_motion_body += "     \u2022 The existing child support order is terminated for the children who have become emancipated.\n" 
-      if support_amount_change != "end":
-        additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
+      if children.number() > 1:
+        if support_amount_change != "end":
+          additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
     
     if support_amount_change == "increase":
       additional_motion_body += "     \u2022 The existing child support order is increased to reflect the changes in the parties' obligations, conditions, and abilities to the percentage of net income as provided by statute.\n"
   
     if support_amount_change == "decrease":
       additional_motion_body += "     \u2022 The existing child support order is reduced to reflect the changes in the parties' obligations, conditions, and abilities.\n"
-  
+
     if health_insurance_change:
       if health_insurance_parent == "Me":
         additional_motion_body += "     \u2022 That " + users[0].name_full()
@@ -1559,7 +1564,7 @@ question: |
 subquestion: |
   
   Your forms are ready. View and download your forms below. Click **:edit: Make changes** to fix any mistakes.
-
+  
   This program **does not file** your Motion with the court or deliver it to other parties in your case. You will need to do this yourself. Learn about [**e-filing in Illinois**](https://www.illinoiscourts.gov/eservices/information-for-filers-without-lawyers).
 
   ${ action_button_html(url_action('review_answers'), label=':edit: Make changes', color='success', size="md") }
@@ -1643,7 +1648,7 @@ code: |
   notice_attachment.enabled = True
   notice_single_pdf_bundle.enabled = True
 
-  if children.number() == 1 and (graduation_change or emancipation_change):
+  if support_amount_change == "end" or (children.number() == 1 and (graduation_change or emancipation_change)):
     child_support_order.enabled = False
     support_information_sheet.enabled = False
     income_withholding_instructions.enabled = False
@@ -2369,7 +2374,7 @@ review:
         * The supporting parent's ability to maintain health insurance coverage has changed. ${ other_parties[0].name_full() } should maintain health insureance for the children.
       % endif
       % endif      
-      % if custody_change:
+      % if graduation_change:
         * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
       % endif
       % if costs_change:
@@ -2911,7 +2916,7 @@ review:
         * The supporting parent's ability to maintain health insurance coverage has changed. ${ other_parties[0].name_full() } should maintain health insureance for the children.
       % endif
       % endif      
-      % if custody_change:
+      % if graduation_change:
         * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
       % endif
       % if costs_change:
