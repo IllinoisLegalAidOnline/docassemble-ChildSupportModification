@@ -127,7 +127,6 @@ code: |
   hand_delivery_info
  
   courthouse_info
-  financial_affidavit_note
 
   set_progress(90)
   nav.set_section('section_about_you')
@@ -142,6 +141,7 @@ code: |
   users[0].birthdate
   if users[0].emp_status == "Yes":
     users[0].employer.name.text 
+  financial_affidavit_note
   e_signature
 
   set_progress(100)
@@ -196,9 +196,9 @@ question: |
 subquestion: |
   Welcome to Illinois Legal Aid Online's **Request to change child support** Easy Form.
 
-  UPDATE
+  This program helps you make a *Motion to Modify Child Support* to increase or decrease child support for your children. You can use this if you are paying or receiving child support.
   
-  UPDATE: To learn more, read ILAO's article about [**preparing, filing, and presenting motions in court**](https://www.illinoislegalaid.org/node/32286).
+  To learn more, read ILAO's article about [**changing or ending child support payments**](https://www.illinoislegalaid.org/node/183971).
 field: sees_nav_bar
 ---
 id: instructions
@@ -206,18 +206,16 @@ continue button field: how_to_use
 question: |
   Instructions
 subquestion: |
-  UPDATE THIS PAGE
-  
-  To use this program you will need to know: 
+  To use this program you will need: 
 
-  * Your court case information, 
-  * What you want the court to do,
-  * Names and addresses of the other parties, and 
-  * Names and addresses of the other parties’ lawyers, if any. 
+  * A child support order from an Illinois court, 
+  * A change of circumstances for you, the other parent, or the children,
+  * Information about the other parent, and  
+  * Information about the other parent's lawyer, if any. 
 
   You can find most of this information on other court papers you have about this case. 
 
-  Set aside 10 to 15 minutes to finish this program. You can log in and save your work to continue later. 
+  Set aside 15 to 25 minutes to finish this program. You can log in and save your work to continue later. 
  
   ${ collapse_template(help_example) }  
 
@@ -234,13 +232,11 @@ continue button field: whats_next
 question: |
   After you finish this program
 subquestion: |
-  UPDATE
-  
   After you download your *Motion*, you must file it with the court. This program **does not file** your *Motion* for you.
   
   You may need to schedule a court date for when the judge will hear your motion. The scheduling process is different depending on your location and case type. Check with your local circuit clerk for how to schedule a motion hearing.
   
-  Finally, you will need to send your *Motion* and *Notice of Court Date for Motion* forms to other parties in your case, if there are any.
+  Finally, you will need to send your *Motion* and *Notice of Court Date for Motion* forms to the other parent.
   
   To learn more, read the instructions you can download at the end of this program. 
 ---
@@ -249,19 +245,23 @@ continue button field: calculator
 question: |
   Use the Illinois Child Support Calculator 
 subquestion: |
-  UPDATE THIS PAGE
+  Before you make your forms and file in court, it is recommended that you use the Illinois Department of Healthcare and Family Services (IDHFS) [Child Support Estimator](https://cscwebext.hfs.illinois.gov/CscWebEx/app/estimator?execution=e2s1) to see what amount of child support is required under Illinois law.
+  
+  To use the calculator, you will need to know:
 
-  Link to calculator
+  * How many overnights per year the children spend with you,
+  * How much income each parent gets (you can estimate if you don't have the exact amount), and
+  * Whether you or the other parent support other children.
+
+  **Note:** After you run the calculator, you can download and print a worksheet that explains how the child support amount was calculated. You should attach this to your Motion to Modify Child Support.
 ---
 id: child support order type
 question: |
   What kind of child support order do you want to change?
 subquestion: |
-  UPDATE
+  Judicial child support orders come through the courts and are signed by a judge. The parents might have started the case on their own, or the State's Attorney or Attorney General's office might be involved.
 
-  explain types and how to find out
-
-  Illinois Department of Healthcare and Family Services (IDHFS)
+  Administrative child support orders are set up through Child Support Services, part of the Illinois Department of Healthcare and Family Services (IDHFS). These are sometimes called Title IV-D cases.
 fields:
   - Child support order type: order_type
     input type: radio
@@ -282,13 +282,11 @@ event: must_be_judicial_order
 question: |
   Sorry
 subquestion: |
-  UPDATE
-  
   This program makes forms to change a **judicial** child support order. The support order must have been issued or registered by an Illinois court.
 
-  If you don't know, here's how to find out:...
+  You can contact IDHFS to change or enforce (make the supporting parent pay) an administrative child support order. Call Child Support Services at 1-800-447-4278 or visit a [regional office](https://hfs.illinois.gov/childsupport/parents/offices.html).
   
-  UPDATE - contact HFS to enforce admin. or enforce on own after you register. contact clerk.
+  If you want to do this yourself in court, you will have to register the administrative order. Contact your local circuit clerk to find out how to do it in the county where you live.
   
   Click **Back** if you made a mistake. Or you can talk with a lawyer to discuss your options. Use **[Get Legal Help](https://www.illinoislegalaid.org/get-legal-help)** to find free or low-cost legal services in your area.
 buttons:
@@ -333,9 +331,9 @@ id: child support case type
 question: |
   What kind of court document orders child support?
 subquestion: |
-  UPDATE
+  Child support can be ordered in a few kinds of family law cases. Look at the child support order. The name or title of the order is usually on the first page near the top.
 
-  explain cases and how to find out
+  If you aren't sure, select **Other** and enter the name of the document that orders child support.
 fields:
   - Child support order name: case_type
     input type: radio
@@ -454,8 +452,15 @@ id: change reason
 question: |
   Why do you want to change the amount of child support?
 subquestion: |
-  UPDATE - explain substantial change in circumstances
+  To modify a previous order of child support, a judge must find that there has been a **substantial change in circumstances**.
 
+  Examples of a substantial change in circumstances include:
+
+  * My child's daycare costs have increased by $50 per month.
+  * The children are now staying overnight with me 3 times per week.
+  * Health insurance costs for the children have increased by $100 per month.
+  * My work hours were reduced and my monthly income decreased by $300.
+  
   Check all that apply and add information as needed.
 fields:
   - My income has changed.: user_income_change
@@ -485,7 +490,7 @@ fields:
   - Who should maintain health insurance for the children?: health_insurance_parent
     input type: radio
     help: |
-      The court can order that the cost of health insurance is shared by both parents.
+      The parent who **maintains** health insurance is the person who signs up the child ren for coverage. The court can order that the cost of health insurance is shared by both parents.
     choices:
       - Me: Me
       - "${other_parties[0].name_full()}": other
@@ -501,7 +506,7 @@ fields:
     show if:
       variable: graduation_change
       is: True
-  - "The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.": costs_change
+  - "The needs of the children have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.": costs_change
     datatype: yesnowide    
   - "One or more of the children have become emancipated.": emancipation_change
     datatype: yesnowide
@@ -560,6 +565,8 @@ question: |
   Who is your child with ${other_parties[0].name_full()}?
 subquestion: |
   You only need to include children that are included in the ${ order_date } order.
+
+  If you have more than one child, you can enter their information on another screen.
 fields:
   - code: |
       children[0].name_fields()
@@ -584,7 +591,7 @@ question: |
 subquestion: |
   So far you have told us about ${children.full_names()}.
 
-  The forms have room for up to 6 children. You only need to include children that are included in the ${ order_date } order.
+  The forms have room for up to seven children. You only need to include children that are included in the ${ order_date } order.
 fields:
   - "Anyone else?": children.there_is_another
     datatype: yesnoradio
@@ -797,7 +804,9 @@ id: idhfs involvement
 question: |
   Was IDHFS involved in an earlier adminsitrative child support order?
 subquestion: |
-  UPDATE
+  The Illinois Department of Healthcare and Family Services (IDHFS) was involved if IV-D Services helped the person receiving child support get the original order you are trying to modify.
+
+  **Note:** You should also select **Yes** if the person receiving child support is receiving cash assistance (Temporary Assistance for Needy Families, also known as TANF) from IDHFS.
 fields:
   - no label: idhfs_involved
     datatype: yesnoradio
@@ -808,7 +817,9 @@ id: states attorney involvement
 question: |
   Was the State's Attorney's or Attorney General's office involved in the support order?
 subquestion: |
-  UPDATE
+  A lawyer for the state could have helped get the original child support order. They also could have helped enforce the child support order, that is, making sure the supporting parent paid.
+
+  Look on the child support order. If a lawyer from the State's Attorney's or Attorney General's office signed the order, then they were involved.  
 fields:
   - no label: sa_involved
     datatype: yesnoradio
@@ -851,7 +862,9 @@ code: |
 id: trial court county
 continue button field: case_county
 question: |
-  In which county was this case filed?
+  In which county was the support order entered?
+subquestion: |
+  The county is usually listed at the top of the first page of the court order.
 fields:
   - County: trial_court_index
     datatype: integer
@@ -930,16 +943,16 @@ code: |
     else:
       motion_body += indefinite_article(case_type)
   
-    motion_body += " for "
+    motion_body += " that ordered "
   
     if payor_parent == "Me":
       motion_body += users[0].name_full()
     else:
       motion_body += other_parties[0].name_full()
   
-    motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
+    motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support.\n\n"
 
-    motion_body += "5. The Judgment or Order provided for the support of the following child(ren):\n \n"
+    motion_body += "5. The Judgment or Order provided for the support of the following children:\n \n"
   
     for child in children:
       motion_body += "     \u2022 " + child.name_full() + ", born: " + child.birthdate + ", age: " + str(child.age_in_years()) + "\n"
@@ -979,7 +992,7 @@ code: |
       additional_motion_body += "     \u2022 One or more of the children are now over the age of 18 and have or will have graduated from high school on " + graduation_date + ".\n"
   
     if costs_change:
-      additional_motion_body += "     \u2022 The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.\n"
+      additional_motion_body += "     \u2022 The needs of the children have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.\n"
     
     if emancipation_change:
       additional_motion_body += "     \u2022 One or more of the children have become emancipated on " + emancipation_date + ".\n" 
@@ -990,14 +1003,14 @@ code: |
     additional_motion_body += "\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
   
     if graduation_change:
-      additional_motion_body += "     \u2022 The existing child support order is terminated for the child(ren) who have reached the age of 18 and have or will have graduated from high school.\n"
+      additional_motion_body += "     \u2022 The existing child support order is terminated for the children who have reached the age of 18 and have or will have graduated from high school.\n"
       if support_amount_change != "end":
-        additional_motion_body += "     \u2022 There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+        additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
     
     if emancipation_change:
-      additional_motion_body += "     \u2022 The existing child support order is terminated for the child(ren) who have become emancipated.\n" 
+      additional_motion_body += "     \u2022 The existing child support order is terminated for the children who have become emancipated.\n" 
       if support_amount_change != "end":
-        additional_motion_body += "     \u2022 There are other child(ren) who are a part of the child support order and for whom support will continue.\n"
+        additional_motion_body += "     \u2022 There are other children who are a part of the child support order and for whom support will continue.\n"
     
     if support_amount_change == "increase":
       additional_motion_body += "     \u2022 The existing child support order is increased to reflect the changes in the parties' obligations, conditions, and abilities to the percentage of net income as provided by statute.\n"
@@ -1010,7 +1023,7 @@ code: |
         additional_motion_body += "     \u2022 That " + users[0].name_full()
       else:
         additional_motion_body += "     \u2022 That " + other_parties[0].name_full()
-      additional_motion_body += " will maintain health insurance for the child(ren), and that the Court determines the amount of health insurance each party should pay.\n"
+      additional_motion_body += " will maintain health insurance for the children, and that the Court determines the amount of health insurance each party should pay.\n"
   
     additional_motion_body += "     \u2022 Enter such other orders as may be necessary and appropriate."
 
@@ -1118,7 +1131,7 @@ continue button field: notice_intro
 question: |
   Let the other parent know about your motion
 subquestion: |
-  You must let them know about your motion and when you will present it to the judge. If they have a lawyer, you must let their lawyer know.
+  You must let ${ other_parties[0].name_full() } know about your motion and when you will present it to the judge. If they have a lawyer, you must let their lawyer know.
 
   If the Illinois Department of Healthcare and Family Services (IDHFS) was involved in an earlier administrative support order, they may need to be notified. Also, if the State's Attorney's office was involved in the earlier support order, they must be notified.
 
@@ -1571,7 +1584,7 @@ under: |
 generic object: ALDocumentBundle
 template: x.send_email_template
 subject: |
-  Motion forms
+  Motion to Modify Child Support forms
 content: |
   Your forms are attached.
   
@@ -1714,6 +1727,7 @@ attachment:
       - "user__1": ${ users[0].name_full() }
       - "user__2": ${ users[0].name_full() }
       - "user__3": ${ users[0].name_full() }
+      - "hide_address": ${ hide_address }
       - "user_mail_address_one_line__1": ${ users[0].address.on_one_line(bare=True) }
       - "user_mail_address_one_line__2": ${ users[0].address.on_one_line(bare=True) }
       - "user_phone_number__1": ${ phone_number_formatted(users[0].phone_number) }
@@ -2057,7 +2071,7 @@ attachment:
         % endif
     - "pet_address__2": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
-        ${ users[0].address.on_one_line(bare=True) if hide_address == False else "" }
+        ${ users[0].address.on_one_line(bare=True) }
         % else:
         ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
         % endif
@@ -2109,7 +2123,7 @@ attachment:
         % if party_label == 'plaintiff' or party_label == 'petitioner':
         ${ other_parties[0].address.on_one_line(bare=True) if knows_other_parent_address else "" }
         % else:
-        ${ users[0].address.on_one_line(bare=True) if hide_address == False else "" }
+        ${ users[0].address.on_one_line(bare=True) }
         % endif
     - "resp_dob": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
@@ -2359,7 +2373,7 @@ review:
         * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
       % endif
       % if costs_change:
-        * The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
+        * The needs of the children have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
       % endif
       % if emancipation_change:
         * One or more of the children have become emancipated on ${ emancipation_date }.
@@ -2901,7 +2915,7 @@ review:
         * One or more of the children are now over the age of 18 and have or will have graduated from high school on ${ graduation_date }.
       % endif
       % if costs_change:
-        * The needs of the child(ren) have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
+        * The needs of the children have substantially increased due to their age, including but not limited to clothing, food, school expenses, etc.
       % endif
       % if emancipation_change:
         * One or more of the children have become emancipated on ${ emancipation_date }.
