@@ -90,7 +90,9 @@ code: |
   set_progress(45)
   nav.set_section('section_about_children')
   children.gather()
-
+  if children.number() == 0:
+    must_be_children
+  
   set_progress(60)
   nav.set_section('section_about_other_parent')
   if knows_other_parent_address:
@@ -196,7 +198,7 @@ question: |
 subquestion: |
   Welcome to Illinois Legal Aid Online's **Request to change child support** Easy Form.
 
-  This program helps you make a *Motion to Modify Child Support* to increase or decrease child support for your children. You can use this if you are paying or receiving child support.
+  This program helps you make a *Motion to Modify Child Support* to increase, decrease, or end child support for your children. You can use this if you are paying or receiving child support.
   
   To learn more, read ILAO's article about [**changing or ending child support payments**](https://www.illinoislegalaid.org/node/183971).
 field: sees_nav_bar
@@ -443,7 +445,7 @@ fields:
     datatype: yesnoradio
   - How much child support is overdue?: arrears_amount
     datatype: currency
-    min: 1
+    min: 0.01
     show if:
       variable: is_support_current
       is: False
@@ -459,6 +461,7 @@ subquestion: |
   * My child's daycare costs have increased by $50 per month.
   * The children are now staying overnight with me 3 times per week.
   * Health insurance costs for the children have increased by $100 per month.
+  * My child now has a disability and their care costs have increased. 
   * My work hours were reduced and my monthly income decreased by $300.
   
   Check all that apply and add information as needed.
@@ -606,10 +609,25 @@ fields:
   - Birth date: children[i].birthdate
     datatype: BirthDate
     alMax: ${ today().format("yyyy-MM-dd") }
+    alMin: ${ order_date }
 ---
 code: |
   if children.number_gathered() >= 7:
     children.there_is_another = False
+---
+id: must be at least one child
+event: must_be_children
+question: |
+  Sorry
+subquestion: |
+  It looks like the children information is incomplete. You need to enter at least one child name and birthdate to make your forms.
+
+  Click [**About your children**](${ url_action('section_about_children') }) and click the **:edit: Edit** button to add child information. 
+  
+  If you are unsure what to do, you can talk with a lawyer to discuss your options. Use **[Get Legal Help](https://www.illinoislegalaid.org/get-legal-help)** to find free or low-cost legal services in your area.
+buttons:
+  - Exit: exit
+  - Restart: restart
 ---
 id: other parent birthdate
 question: |
@@ -617,7 +635,7 @@ question: |
 fields:
   - Date of birth: other_parties[0].birthdate
     datatype: BirthDate
-    alMax: ${ order_date.format("yyyy-MM-dd") }    
+    alMax: ${ order_date }
 ---
 id: know other parent address
 question: |
@@ -759,7 +777,7 @@ question: |
 fields:
   - Date of birth: users[0].birthdate
     datatype: BirthDate
-    alMax: ${ order_date.format("yyyy-MM-dd") }
+    alMax: ${ order_date }
 ---
 id: user employment status
 question: |
@@ -919,7 +937,7 @@ content: |
 sets: motion_body
 code: |
   def make_motion_body():
-    motion_body = users[0].name_full() + "asks this Honorable Court, pursuant to 750 ILCS 5/510, to modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
+    motion_body = users[0].name_full() + " asks this Honorable Court, pursuant to 750 ILCS 5/510, to modify or terminate an existing order of child support. In support of my motion, I state that the following is true and correct:\n \n"
   
     motion_body += "1. The Court has jurisdiction over the subject matter and the parties.\n \n"
   
@@ -1001,7 +1019,7 @@ code: |
       additional_motion_body += "     \u2022 One or more of the children have become emancipated on " + emancipation_date + ".\n" 
   
     if other_change:
-      additional_motion_body += "     \u2022 " + other_change_text + "\n"
+      additional_motion_body += "     \u2022 " + other_change_text.replace("\n", " ").replace("\r", " ") + "\n"
   
     additional_motion_body += "\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
   
@@ -1105,7 +1123,7 @@ id: e-signature
 question: |
   Do you want to add your e-signature to your ${ form_name }?
 subquestion: |
-  This program can put “**/s/ ${users[0].name_full()}**” where you would sign your name. The court will accept this as your signature.
+  This program can put "**/s/ ${users[0].name_full()}**" where you would sign your name. The court will accept this as your signature.
 
   If you do not add your **{e-signature}** now, you must sign your paper forms before you file and deliver them.
 
