@@ -98,7 +98,7 @@ code: |
   if knows_other_parent_address:
     other_parties[0].address.address
   other_parties[0].phone_number
-  other_parties[0].birthdate
+  knows_other_parent_dob
   if other_parties[0].emp_status == "Yes":
     other_parties[0].employer.name.text
 
@@ -261,7 +261,7 @@ id: child support order type
 question: |
   What kind of child support order do you want to change?
 subquestion: |
-  Judicial child support orders come through the courts and are signed by a judge. The parents might have started the case on their own, or the State's Attorney or Attorney General's office might be involved.
+  Judicial child support orders come through the courts and are signed by a judge. The parents might have started the case on their own, or the State's Attorney or Attorney General's office might be involved. Examples include: Judgment for Dissolution of Marriage, Order for Support, or Order of Parentage.
 
   Administrative child support orders are set up through Child Support Services, part of the Illinois Department of Healthcare and Family Services (IDHFS). These are sometimes called Title IV-D cases.
 fields:
@@ -286,9 +286,11 @@ question: |
 subquestion: |
   This program makes forms to change a **judicial** child support order. The support order must have been issued or registered by an Illinois court.
 
+  To learn more about modifying an adminstrative support order, see [**What You Need to Know About the Modification Review Process for Child Support Orders](https://hfs.illinois.gov/childsupport/formsbrochures/hfs3588.html) on the IDHFS website.
+  
   You can contact IDHFS to change or enforce (make the supporting parent pay) an administrative child support order. Call Child Support Services at 1-800-447-4278 or visit a [regional office](https://hfs.illinois.gov/childsupport/parents/offices.html).
   
-  If you want to do this yourself in court, you will have to register the administrative order. Contact your local circuit clerk to find out how to do it in the county where you live.
+  If you want to change the child support order yourself in court, you will have to register the administrative order. Contact your local circuit clerk to find out how to do it in the county where you live.
   
   Click **Back** if you made a mistake. Or you can talk with a lawyer to discuss your options. Use **[Get Legal Help](https://www.illinoislegalaid.org/get-legal-help)** to find free or low-cost legal services in your area.
 buttons:
@@ -356,6 +358,8 @@ id: party label
 question: |
   What is your role in the case?
 subquestion: |
+  Select your role in the case where the child support order is part of.
+  
   ${ collapse_template(which_party) }  
 field: party_label
 choices:
@@ -368,7 +372,7 @@ template: which_party
 subject: |
   **Learn more about roles and party labels**
 content: |
-  If you filed a new case, you are either the Plaintiff or the Petitioner.
+  If you filed the case, you are either the Plaintiff or the Petitioner.
 
   If someone filed the case against you, you are either the Defendant or the Respondent.
 
@@ -608,8 +612,7 @@ question: |
 fields:
   - Birth date: children[i].birthdate
     datatype: BirthDate
-    alMax: ${ today().format("yyyy-MM-dd") }
-    alMin: ${ order_date }
+    alMax: ${ order_date }
 ---
 code: |
   if children.number_gathered() >= 7:
@@ -631,11 +634,16 @@ buttons:
 ---
 id: other parent birthdate
 question: |
-  When was ${other_parties[0].name_full()} born?
+  Do you know ${other_parties[0].name_full()}'s birthdate?
 fields:
+  - "Know ${other_parties[0].name_full()}'s birthdate?": knows_other_parent_dob
+    datatype: yesnoradio
   - Date of birth: other_parties[0].birthdate
     datatype: BirthDate
     alMax: ${ order_date }
+    show if:
+      variable: knows_other_parent_dob
+      is: True
 ---
 id: know other parent address
 question: |
@@ -950,7 +958,14 @@ code: |
     else:
       motion_body += "My address is " + users[0].address.on_one_line(bare=True) + ". I live in " + clean_county(users[0].residence_county) + " County, " + state_name(users[0].residence_state) + ".\n\n"
     
-    motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". They are " + str(other_parties[0].age_in_years()) + " years old. Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
+    motion_body += "3. The other parent's name is " + other_parties[0].name_full() + ". "
+  
+    if knows_other_parent_dob:
+      motion_body += "They are " + str(other_parties[0].age_in_years()) + " years old. "
+    else:
+      motion_body += "I do not know their age. "
+
+    motion_body += "Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
     
     if other_parties[0].address.state == "IL":
       motion_body += "a resident of Illinois.\n\n"
@@ -988,7 +1003,7 @@ code: |
     if is_support_current:
       additional_motion_body += "current on child support payments.\n\n"
     else:
-      additional_motion_body += "not current on child support payements and owes $" + thousands(arrears_amount, show_decimals=True) + " to the receiving parent.\n\n"
+      additional_motion_body += "not current on child support payments and owes $" + thousands(arrears_amount, show_decimals=True) + " to the receiving parent.\n\n"
   
     additional_motion_body += "7. Since the entry of the Judgment or Order, there has been a substantial change in the circumstances of the parties which justifies the immediate modification of the child support order, including:\n\n"
   
@@ -2453,7 +2468,11 @@ review:
   - Edit: other_parties[0].birthdate
     button: |
       **When was ${other_parties[0].name_full()} born?**
+      % if knows_other_parent_dob:
       ${ other_parties[0].birthdate }
+      % else:
+      I don't know.
+      % endif
   - Edit: other_parties[0].emp_status
     button: |
       **Is ${other_parties[0].name_full()} employed?**
@@ -2969,10 +2988,10 @@ subquestion: |
 review:
   - Edit: children.revisit
     button: |
-      **Your children with ${other_parties[0].name_full()}: (Edit to change names and details)**
+      **Your children with ${other_parties[0].name_full()}: (Edit to change names and birthdates)**
 
       % for my_var in children:
-        * ${ my_var.name_full() }
+        * ${ my_var.name_full() }, born: ${ my_var.birthdate }
       % endfor
 
 ---
@@ -2986,7 +3005,18 @@ subquestion: |
   % if children.number_gathered() < 7:
   ${ children.add_action() }
   % endif
-
+---
+table: children.table
+rows: children
+columns:
+  - Name: |
+      row_item.name_full() if defined("row_item.name.first") else ""
+  - Birthdate: |
+      row_item.birthdate if defined("row_item.birthdate") else ""
+  - Edit: |
+      action_button_html(url_action(row_item.attr_name("review_child_details")), label="Edit", icon="pencil-alt")
+delete buttons: True
+confirm: True
 ---
 id: child details
 continue button field: x.review_child_details
@@ -3035,7 +3065,11 @@ review:
   - Edit: other_parties[0].birthdate
     button: |
       **When was ${other_parties[0].name_full()} born?**
+      % if knows_other_parent_dob:
       ${ other_parties[0].birthdate }
+      % else:
+      I don't know.
+      % endif
   - Edit: other_parties[0].emp_status
     button: |
       **Is ${other_parties[0].name_full()} employed?**
