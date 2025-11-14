@@ -558,7 +558,6 @@ fields:
       - "I want the child support payment amount to **increase**.": increase
       - "I want the child support payment amount to **decrease**.": decrease
       - "I want the child support to **end** for all children on the support order. All children on the order are over 18 and have or will soon graduate high school, or they have emancipated.": end
-      - "No change to the child support amount.": none
 ---
 code: |
   children[i].name.first
@@ -836,6 +835,8 @@ subquestion: |
   The Illinois Department of Healthcare and Family Services (IDHFS) was involved if IV-D Services helped the person receiving child support get the original order you are trying to modify.
 
   **Note:** You should also select **Yes** if the person receiving child support is receiving cash assistance (Temporary Assistance for Needy Families, also known as TANF) from IDHFS.
+
+  If you are unsure, select **No**.
 fields:
   - no label: idhfs_involved
     datatype: yesnoradio
@@ -1780,6 +1781,7 @@ attachment:
       - "movant": ${ users[0].name_full() }
       - "e_sign_name__1": ${ "/s " + users[0].name_full() if e_signature else '' }
       - "e_sign_name__2": ${ users[0].name_full() if e_signature else '' }
+      - "sign_date": ${ today() if e_signature else '' }        
       - "motion_by_plaintiff": ${ party_label == "plaintiff" or party_label == "petitioner" }
       - "motion_by_defendant": ${ party_label == "defendant" or party_label == "respondent" }
       - "motion_summary": ${ "Modify Child Support" }
@@ -2426,10 +2428,8 @@ review:
       I want the child support payment amount to **increase**.
       % elif support_amount_change == "decrease":
       I want the child support payment amount to **decrease**.
-      % elif  support_amount_change == "end":
-      I want the child support to **end** for all children on the support order.
       % else:
-      No change to the child support amount.
+      I want the child support to **end** for all children on the support order.
       % endif
 
   - note: |
@@ -2972,10 +2972,8 @@ review:
       I want the child support payment amount to **increase**.
       % elif support_amount_change == "decrease":
       I want the child support payment amount to **decrease**.
-      % elif  support_amount_change == "end":
-      I want the child support to **end** for all children on the support order.
       % else:
-      No change to the child support amount.
+      I want the child support to **end** for all children on the support order.
       % endif
 ---
 id: about your children review screen
