@@ -234,7 +234,7 @@ continue button field: whats_next
 question: |
   After you finish this program
 subquestion: |
-  After you download your *Motion*, you must file it with the court. This program **does not file** your *Motion* for you.
+  After you download your *Motion to Modify Child Support*, you must file it with the court. This program **does not file** your *Motion* for you.
   
   You may need to schedule a court date for when the judge will hear your motion. The scheduling process is different depending on your location and case type. Check with your local circuit clerk for how to schedule a motion hearing.
   
@@ -255,7 +255,7 @@ subquestion: |
   * How much income each parent gets (you can estimate if you don't have the exact amount), and
   * Whether you or the other parent support other children.
 
-  **Note:** After you run the calculator, you can download and print a worksheet that explains how the child support amount was calculated. You should attach this to your Motion to Modify Child Support.
+  **Note:** After you run the calculator, you can download and print a worksheet that explains how the child support amount was calculated. You should attach this to your *Motion to Modify Child Support*.
 ---
 id: child support order type
 question: |
@@ -271,7 +271,9 @@ fields:
       - Administrative IV-D (through IDHFS): admin
       - Judicial (through court): judicial
       - Registered IV-D support order: registered
-      - I'm not sure: idk
+        help: |
+          Select **Registered IV-D support order** if the original order was an administrative IV-D support order obtained through IDHFS and then registered with a clerk of the circuit court. Registering the order would give it a court case number that will be used when you file your motion.
+      - I'm not sure.: idk
   - When was the administrative support order registered in court?: registration_date
     datatype: ThreePartsDate
     alMax: ${ today().format("yyyy-MM-dd") }
@@ -372,7 +374,7 @@ template: which_party
 subject: |
   **Learn more about roles and party labels**
 content: |
-  If you filed the case, you are either the Plaintiff or the Petitioner.
+  If you filed the original case, you are either the Plaintiff or the Petitioner.
 
   If someone filed the case against you, you are either the Defendant or the Respondent.
 
@@ -966,13 +968,16 @@ code: |
     else:
       motion_body += "I do not know their age. "
 
-    motion_body += "Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
-    
-    if other_parties[0].address.state == "IL":
-      motion_body += "a resident of Illinois.\n\n"
+
+    if knows_other_parent_address:
+      motion_body += "Their address is " + other_parties[0].address.on_one_line(bare=True) + ". They are "
+      if other_parties[0].address.state == "IL":
+        motion_body += "a resident of Illinois.\n\n"
+      else:
+        motion_body += "not a resident of Illinois.\n\n"  
     else:
-      motion_body += "not a resident of Illinois.\n\n"  
-    
+      motion_body += "I do not know their current address.\n\n"  
+  
     motion_body += "4. On " + order_date + ", this court entered "
     
     if case_type == "other":
@@ -1469,7 +1474,7 @@ fields:
     js show if:
       val("x.physical_delivery") == true
     required: False
-  - Address or intersection of mailbox or delivery company: x.delivery_mail_address
+  - Street address or intersection of mailbox or delivery company: x.delivery_mail_address
     maxlength: 40
     js show if: 
       val("x.physical_delivery") == true && val("x.mail_delivery") == true
