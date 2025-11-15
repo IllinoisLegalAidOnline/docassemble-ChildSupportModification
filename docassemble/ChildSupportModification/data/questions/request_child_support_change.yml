@@ -551,8 +551,6 @@ validation code: |
 id: increase or decrease support
 question: |
   How do you want the child support payment amount to change?
-subquestion: |
-  If you only want a change to who provides health insurance for the children, select **No change to the child support amount**.
 fields:
   - no label: support_amount_change
     input type: radio
