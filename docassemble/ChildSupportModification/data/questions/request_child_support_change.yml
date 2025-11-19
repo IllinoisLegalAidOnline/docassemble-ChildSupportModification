@@ -100,7 +100,8 @@ code: |
   other_parties[0].phone_number
   knows_other_parent_dob
   if other_parties[0].emp_status == "Yes":
-    other_parties[0].employer.name.text
+    if other_parties[0].knows_emp:
+      other_parties[0].employer.name.text
 
   #debug_motion_body
   
@@ -687,6 +688,11 @@ fields:
       - Yes: Yes
       - No: No
       - I don't know.: idk
+  - "Do you know the name and address of where ${other_parties[0].name_full()} works?": other_parties[0].knows_emp
+    datatype: yesnoradio
+    show if:
+      variable: other_parties[0].emp_status
+      is: "Yes"
 ---
 id: other parent employer info
 question: |
@@ -2136,22 +2142,33 @@ attachment:
         % if party_label == 'plaintiff' or party_label == 'petitioner':
         ${ users[0].employer.name.text if users[0].emp_status == "Yes" else "" }
         % else:
-        ${ other_parties[0].employer.name.text if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ other_parties[0].employer.name.text }
+        % endif
+        % endif
         % endif
         
     - "pet_employer_address": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
         ${ users[0].employer.address.on_one_line(bare=True) if users[0].emp_status == "Yes" else "" }
         % else:
-        ${ other_parties[0].employer.address.on_one_line(bare=True) if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ other_parties[0].employer.address.on_one_line(bare=True) }
+        % endif        
+        % endif
         % endif
     - "pet_employer_phone": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
         ${ phone_number_formatted(users[0].employer.phone_number) if users[0].emp_status == "Yes" else "" }
         % else:
-        ${ phone_number_formatted(other_parties[0].employer.phone_number) if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ phone_number_formatted(other_parties[0].employer.phone_number) }
+        % endif        
         % endif
-
+        % endif
 
     - "pet_payor": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" else "" }
     - "pet_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" else "" }
@@ -2182,19 +2199,31 @@ attachment:
         % endif
     - "resp_employer": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
-        ${ other_parties[0].employer.name.text if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ other_parties[0].employer.name.text }
+        % endif        
+        % endif
         % else:
         ${ users[0].employer.name.text if users[0].emp_status == "Yes" else "" }
         % endif
     - "resp_employer_address": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
-        ${ other_parties[0].employer.address.on_one_line(bare=True) if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ other_parties[0].employer.address.on_one_line(bare=True) }
+        % endif        
+        % endif        
         % else:
         ${ users[0].employer.address.on_one_line(bare=True) if users[0].emp_status == "Yes" else "" }
         % endif
     - "resp_employer_phone": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
-        ${ phone_number_formatted(other_parties[0].employer.phone_number) if other_parties[0].emp_status == "Yes" else "" }
+        % if other_parties[0].emp_status == "Yes":
+        % if other_parties[0].knows_emp:
+        ${ phone_number_formatted(other_parties[0].employer.phone_number) }
+        % endif        
+        % endif
         % else:
         ${ phone_number_formatted(users[0].employer.phone_number) if users[0].emp_status == "Yes" else "" }
         % endif
@@ -2479,24 +2508,28 @@ review:
   - Edit: other_parties[0].emp_status
     button: |
       **Is ${other_parties[0].name_full()} employed?**
-
       % if other_parties[0].emp_status == "Yes":
-      * Yes
+      Yes
       % elif other_parties[0].emp_status == "No":
-      * No
+      No
       % else:
-      * I don't know.
+      I don't know.
       % endif
+  - Edit: other_parties[0].emp_status
+    button: |
+      **Do you know the name and address of ${other_parties[0].name_full()}'s employer?**
+      ${word(yesno(other_parties[0].knows_emp))}
+    show if: other_parties[0].emp_status == "Yes"
   - Edit: other_parties[0].employer.name.text
     button: |
-      **${other_parties[0].name_full()}'s employer name and phone number:**
+      **${other_parties[0].name_full()}'s employer name and phone number, if known:**
       ${ other_parties[0].employer.name.text }, ${ phone_number_formatted(other_parties[0].employer.phone_number)}
-    show if: other_parties[0].emp_status == "Yes"
+    show if: other_parties[0].emp_status == "Yes" and other_parties[0].knows_emp
   - Edit: other_parties[0].employer.address.address
     button: |
       **${other_parties[0].name_full()}'s employer address:**
       ${ other_parties[0].employer.address.on_one_line(bare=True) }
-    show if: other_parties[0].emp_status == "Yes"
+    show if: other_parties[0].emp_status == "Yes" and other_parties[0].knows_emp
 
   - note: |
       <h4>Notice and delivery</h4>
@@ -3074,24 +3107,28 @@ review:
   - Edit: other_parties[0].emp_status
     button: |
       **Is ${other_parties[0].name_full()} employed?**
-
       % if other_parties[0].emp_status == "Yes":
-      * Yes
+      Yes
       % elif other_parties[0].emp_status == "No":
-      * No
+      No
       % else:
-      * I don't know.
+      I don't know.
       % endif
+  - Edit: other_parties[0].emp_status
+    button: |
+      **Do you know the name and address of ${other_parties[0].name_full()}'s employer?**
+      ${word(yesno(other_parties[0].knows_emp))}
+    show if: other_parties[0].emp_status == "Yes"
   - Edit: other_parties[0].employer.name.text
     button: |
-      **${other_parties[0].name_full()}'s employer name and phone number:**
+      **${other_parties[0].name_full()}'s employer name and phone number, if known:**
       ${ other_parties[0].employer.name.text }, ${ phone_number_formatted(other_parties[0].employer.phone_number)}
-    show if: other_parties[0].emp_status == "Yes"
+    show if: other_parties[0].emp_status == "Yes" and other_parties[0].knows_emp
   - Edit: other_parties[0].employer.address.address
     button: |
       **${other_parties[0].name_full()}'s employer address:**
       ${ other_parties[0].employer.address.on_one_line(bare=True) }
-    show if: other_parties[0].emp_status == "Yes"  
+    show if: other_parties[0].emp_status == "Yes" and other_parties[0].knows_emp
   
 ---
 id: delivery info review screen
