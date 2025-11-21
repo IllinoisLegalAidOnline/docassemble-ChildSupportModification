@@ -275,12 +275,6 @@ fields:
         help: |
           Select **Registered IV-D support order** if the original order was an administrative IV-D support order obtained through IDHFS and then registered with a clerk of the circuit court. Registering the order would give it a court case number that will be used when you file your motion.
       - I'm not sure.: idk
-  - When was the administrative support order registered in court?: registration_date
-    datatype: ThreePartsDate
-    alMax: ${ today().format("yyyy-MM-dd") }
-    show if:
-      variable: order_type
-      is: "registered"
 ---
 id: must be judicial order
 event: must_be_judicial_order
@@ -393,13 +387,29 @@ code: |
 ---
 id: order date
 question: |
-  When was the child support entered by the court?
+  Support order date
 subquestion: |
   The date should appear on the support order near the judge's signature.
 fields:
-  - Order date: order_date
+  - When was the child support entered by the court?: order_date
     datatype: ThreePartsDate
     alMax: ${ today().format("yyyy-MM-dd") }
+  - note: |
+      You said this was a IV-D administrative order that was registered in court. The order must have been registered **after** child support was ordered.
+    show if:
+      code: |
+        order_type == "registered"
+  - When was the administrative support order registered in court?: registration_date
+    datatype: ThreePartsDate
+    alMax: ${ today().format("yyyy-MM-dd") }
+    show if:
+      code: |
+        order_type == "registered"
+validation code: |
+  if order_type == "registered":
+    if registration_date < order_date:
+      validation_error("Registration date must be on or after child support order date.", field="registration_date")
+
 ---
 id: payor parent
 question: |
@@ -772,6 +782,7 @@ fields:
   - State where you currently live: users[0].residence_state
     code: |
       states_list()
+    default: "IL"
     help: |
       Choose a state first then enter the county.
   - County where you currently live: users[0].residence_county
@@ -904,6 +915,10 @@ question: |
   In which county was the support order entered?
   % endif
 subquestion: |
+  % if order_type == "registered":
+  This is where you will file your *Motion to Modify Child Support*.
+  
+  % endif
   The county is usually listed at the top of the first page of the court order.
 fields:
   - County: trial_court_index
@@ -985,8 +1000,11 @@ code: |
         motion_body += "not a resident of Illinois.\n\n"  
     else:
       motion_body += "I do not know their current address.\n\n"  
-  
-    motion_body += "4. On " + order_date + ", this court entered "
+
+    if order_type == "registered":
+      motion_body += "4. On " + order_date + ", a court entered "
+    else:
+      motion_body += "4. On " + order_date + ", this Court entered "
     
     if case_type == "other":
       motion_body += indefinite_article(other_case_type)
@@ -1000,8 +1018,13 @@ code: |
     else:
       motion_body += other_parties[0].name_full()
   
-    motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support.\n\n"
+    motion_body += " to pay $" + thousands(support_amount, show_decimals=True) + " " + support_frequency + " in child support."
 
+    if order_type == "registered":
+      motion_body += " The Judgment or Order was registered with this Court on " + registration_date + "."
+
+    motion_body += "\n\n"
+  
     motion_body += "5. The Judgment or Order provided for the support of the following children:\n \n"
   
     for child in children:
@@ -1050,7 +1073,7 @@ code: |
     if other_change:
       additional_motion_body += "     \u2022 " + other_change_text.replace("\n", " ").replace("\r", " ") + "\n"
   
-    additional_motion_body += "\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
+    additional_motion_body += "\n\nWHEREFORE, I ask that this Honorable Court modify the previous Judgment or Order providing that:\n\n"
   
     if graduation_change:
       additional_motion_body += "     \u2022 The existing child support order is terminated for the children who have reached the age of 18 and have or will have graduated from high school.\n"
@@ -1820,7 +1843,7 @@ attachment:
       - "case_number__4": ${ case_number }
       - "case_number__5": ${ case_number }
       - "movant": ${ users[0].name_full() }
-      - "e_sign_name__1": ${ "/s " + users[0].name_full() if e_signature else '' }
+      - "e_sign_name__1": ${ "/s/ " + users[0].name_full() if e_signature else '' }
       - "e_sign_name__2": ${ users[0].name_full() if e_signature else '' }
       - "sign_date": ${ today() if e_signature else '' }        
       - "motion_by_plaintiff": ${ party_label == "plaintiff" or party_label == "petitioner" }
@@ -2350,7 +2373,7 @@ review:
       Judicial (through court)
       % endif
       % if order_type == "registered":
-      IV-D support order registered on ${ registration_date }
+      Registered IV-D support order
       % endif
       % if order_type == "idk":
       I'm not sure.
@@ -2425,6 +2448,11 @@ review:
     button: |
       **Child support order date:**
       ${ order_date}
+
+      % if order_type == "registered":
+      **Order registration date:**
+      ${ registration_date }
+      % endif
   - Edit: payor_parent
     button: |
       **Who was ordered to pay child support in the ${ order_date } order?**
@@ -2730,7 +2758,7 @@ review:
       Judicial (through court)
       % endif
       % if order_type == "registered":
-      IV-D support order registered on ${ registration_date }
+      Registered IV-D support order
       % endif
       % if order_type == "idk":
       I'm not sure.
@@ -2973,6 +3001,11 @@ review:
     button: |
       **Child support order date:**
       ${ order_date}
+
+      % if order_type == "registered":
+      **Order registration date:**
+      ${ registration_date }
+      % endif
   - Edit: payor_parent
     button: |
       **Who was ordered to pay child support in the ${ order_date } order?**
