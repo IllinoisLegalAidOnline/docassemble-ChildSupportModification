@@ -361,7 +361,7 @@ id: party label
 question: |
   What is your role in the case?
 subquestion: |
-  Select your role in the case where the child support order is part of.
+  Select your role in the child support order case.
   
   ${ collapse_template(which_party) }  
 field: party_label
@@ -558,7 +558,7 @@ fields:
     choices:
       - "I want the child support payment amount to **increase**.": increase
       - "I want the child support payment amount to **decrease**.": decrease
-      - "I want the child support to **end** for all children on the support order. All children on the order are over 18 and have or will soon graduate high school, or they have emancipated.": end
+      - "I want the child support to **end** for all children on the support order. All children on the order are over 18 and have or will soon graduate high school, or they have become emancipated.": end
 ---
 code: |
   children[i].name.first
@@ -636,7 +636,7 @@ id: other parent birthdate
 question: |
   Do you know ${other_parties[0].name_full()}'s birthdate?
 fields:
-  - "Know ${other_parties[0].name_full()}'s birthdate?": knows_other_parent_dob
+  - no label: knows_other_parent_dob
     datatype: yesnoradio
   - Date of birth: other_parties[0].birthdate
     datatype: BirthDate
@@ -765,7 +765,7 @@ id: user residence county
 question: |
   In which state and county do you currently live?
 subquestion: |
-  **This information will appear on your court papers.** If you want to keep this hidden because it would put you or your household at risk, **Edit** your answers and say you want to hide your address and county.
+  **This information will appear on your court papers.** If you want to keep this hidden because it would put you or your household at risk, use **:edit: Edit answers** below and say you want to hide your address and county.
 
   ${ collapse_template(county_lookup_help) }
 fields:
@@ -898,7 +898,11 @@ code: |
 id: trial court county
 continue button field: case_county
 question: |
+  % if order_type == "registered":
+  In which county was the support order registered?
+  % else:
   In which county was the support order entered?
+  % endif
 subquestion: |
   The county is usually listed at the top of the first page of the court order.
 fields:
@@ -1345,6 +1349,25 @@ question: |
   Does ${ x.name_full() } have a lawyer listed on the support order?
 fields:
   - no label: x.is_represented
+    datatype: radio
+    choices:
+    - Yes: True
+    - No: False
+    - I don't know.: null
+# note: null will be None in review screen
+---
+id: does other parent have lawyer
+question: |
+  Does ${ other_parties[0].name_full() } have a lawyer listed on the support order?
+subquestion: |
+  **Note:** You only need to select **Yes** if:
+
+  * The child support order case is still ongoing, and
+  * ${ other_parties[0].name_full() } is represented by a lawyer in that case.
+
+  If the child support order case is finished and more than 30 days have passed since the support order date, then you do not need to notify ${ other_parties[0].name_full() }'s lawyer from that case. Select **No** to notify ${ other_parties[0].name_full() } instead of their former lawyer.
+fields:
+  - no label: other_parties[0].is_represented
     datatype: radio
     choices:
     - Yes: True
@@ -2170,8 +2193,8 @@ attachment:
         % endif
         % endif
 
-    - "pet_payor": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" else "" }
-    - "pet_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" else "" }
+    - "pet_payor": ${ True if ((party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me") or ((party_label == 'defendant' or party_label == 'respondent') and payor_parent == "other") else "" }
+    - "pet_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" or ((party_label == 'defendant' or party_label == 'respondent') and payor_parent == "Me") else "" }
     
     - "respondent__2": |
         % if party_label == 'plaintiff' or party_label == 'petitioner':
@@ -2228,8 +2251,8 @@ attachment:
         ${ phone_number_formatted(users[0].employer.phone_number) if users[0].emp_status == "Yes" else "" }
         % endif
 
-    - "res_payor": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other" else "" }
-    - "res_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" else "" }
+    - "res_payor": ${ True if ((party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "other") or ((party_label == 'defendant' or party_label == 'respondent') and payor_parent == "Me") else "" }
+    - "res_payee": ${ True if (party_label == 'plaintiff' or party_label == 'petitioner') and payor_parent == "Me" or ((party_label == 'defendant' or party_label == 'respondent') and payor_parent == "other") else "" }
     
     - "child_name_0": ${ children[0].name_full() }
     - "child_dob_0": ${ children[0].birthdate }
@@ -2337,8 +2360,8 @@ review:
       ${ users[0].name_full() }
   - Edit: party_label
     button: |
-      **Your role in the case:**
-      ${ party_label }
+      **Your role in the child support order case:**
+      ${ party_label.capitalize() }
   - Edit: other_parties.revisit
     button: |
       **The other parent: (Edit to change name, lawyer, address, and delivery info)**
@@ -2351,7 +2374,7 @@ review:
       - recompute:
         - trial_court
     button: |
-      **County where this case is filed:**
+      **County where the motion will be filed:**
       ${ trial_court.address.county }
   - Edit: cook_district
     button: |
@@ -2717,8 +2740,8 @@ review:
       ${ users[0].name_full() }
   - Edit: party_label
     button: |
-      **Your role in the case:**
-      ${ party_label }
+      **Your role in the child support order case:**
+      ${ party_label.capitalize() }
   - Edit: other_parties.revisit
     button: |
       **The other parent: (Edit to change name, lawyer, address, and delivery info)**
@@ -2731,7 +2754,7 @@ review:
       - recompute:
         - trial_court
     button: |
-      **County where this case is filed:**
+      **County where the motion will be filed:**
       ${ trial_court.address.county }
   - Edit: cook_district
     button: |
