@@ -218,7 +218,7 @@ subquestion: |
 
   You can find most of this information on other court papers you have about this case. 
 
-  Set aside 15 to 25 minutes to finish this program. You can log in and save your work to continue later. 
+  Set aside 10 to 20 minutes to finish this program. You can log in and save your work to continue later. 
  
   ${ collapse_template(help_example) }  
 
@@ -1356,24 +1356,23 @@ fields:
     - I don't know.: null
 # note: null will be None in review screen
 ---
-id: does other parent have lawyer
-question: |
-  Does ${ other_parties[0].name_full() } have a lawyer listed on the support order?
-subquestion: |
-  **Note:** You only need to select **Yes** if:
-
-  * The child support order case is still ongoing, and
-  * ${ other_parties[0].name_full() } is represented by a lawyer in that case.
-
-  If the child support order case is finished and more than 30 days have passed since the support order date, then you do not need to notify ${ other_parties[0].name_full() }'s lawyer from that case. Select **No** to notify ${ other_parties[0].name_full() } instead of their former lawyer.
-fields:
-  - no label: other_parties[0].is_represented
-    datatype: radio
-    choices:
-    - Yes: True
-    - No: False
-    - I don't know.: null
-# note: null will be None in review screen
+# commented out pending additional SME feedback
+#id: does other parent have lawyer
+#question: |
+#  Does ${ other_parties[0].name_full() } have a lawyer listed on the support order?
+#subquestion: |
+#  **Note:** You only need to select **Yes** if:#
+#  * The child support order case is still ongoing, and
+#  * ${ other_parties[0].name_full() } is represented by a lawyer in that case.#
+#  If the child support order case is finished and more than 30 days have passed since the support order date, then you do not need to notify ${ other_parties[0].name_full() }'s lawyer from that case. Select **No** to notify ${ other_parties[0].name_full() } instead of their former lawyer.
+#fields:
+#  - no label: other_parties[0].is_represented
+#    datatype: radio
+#    choices:
+#    - Yes: True
+#    - No: False
+#    - I don't know.: null
+## note: null will be None in review screen
 ---
 id: add lawyer
 sets:
@@ -1666,6 +1665,7 @@ content: |
 objects:
   - ilao_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
   - motion_instructions: ALDocument.using(title="Instructions", filename="instructions.pdf", has_addendum=False)
+  - child_support_instructions: ALDocument.using(title="Child support instructions", filename="child_support_instructions.pdf", has_addendum=False)    
   - motion_attachment: ALDocument.using(title="Motion", filename="motion.pdf", has_addendum=False)
   - notice_attachment: ALDocument.using(title="Notice of Court Date for Motion", filename="notice_of_court_date.pdf", has_addendum=False)
   - child_support_order: ALDocument.using(title="Order for Support", filename="child_support_order.pdf", has_addendum=False)
@@ -1707,6 +1707,7 @@ code: |
 code: |
   ilao_instructions.enabled = True
   motion_instructions.enabled = True
+  child_support_instructions.enabled = True
   motion_instructions_bundle.enabled = True
   motion_attachment.enabled = True  
   motion_single_pdf_bundle.enabled = True
@@ -1734,7 +1735,7 @@ objects:
 
 ---
 objects:
-  - motion_instructions_bundle: ALDocumentBundle.using(elements=[ilao_instructions, motion_instructions], filename="instructions.pdf", title="Instructions")
+  - motion_instructions_bundle: ALDocumentBundle.using(elements=[ilao_instructions, motion_instructions, child_support_instructions], filename="instructions.pdf", title="Instructions")
   - motion_single_pdf_bundle: ALDocumentBundle.using(elements=[motion_attachment, additional_delivery_bundle], filename="motion.pdf", title="Motion")
   - notice_single_pdf_bundle: ALDocumentBundle.using(elements=[notice_attachment, additional_delivery_bundle], filename="notice.pdf", title="Notice of Court Date for Motion")
 
@@ -1756,6 +1757,14 @@ attachment:
   skip undefined: True
   editable: False
   pdf template file: ilao_instructions.pdf
+  fields:
+      - "fake": ${ "" }
+---
+attachment:
+  variable name: child_support_instructions[i]
+  name: child_support_instructions
+  filename: child_support_instructions
+  pdf template file: child_support_instructions.pdf  
   fields:
       - "fake": ${ "" }
 ---
