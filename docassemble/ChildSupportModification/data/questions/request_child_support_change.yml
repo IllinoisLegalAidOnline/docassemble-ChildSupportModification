@@ -19,8 +19,8 @@ objects:
   - other_parties[i].lawyer: ALIndividual
   - other_parties[i].jail_delivery_address: ALAddress
                                           
-  - other_parent_lawyers: ALPeopleList
-  - other_parent_lawyers.jail_delivery_address: ALAddress
+  - other_parent_lawyers: ALPeopleList(there_are_any=True, complete_attribute='complete')
+  - other_parent_lawyers[i].jail_delivery_address: ALAddress
 
   - children: ALPeopleList.using(object_type=ALIndividual, there_are_any=True, complete_attribute='complete')
   - delivery_parties: ALPeopleList.using(there_are_any=True)
@@ -126,12 +126,12 @@ code: |
   delivery_intro
   build_delivery_parties
   if other_parent_has_lawyer:
-    other_parent_lawyers[0].name.first
+    other_parent_lawyers.gather()
   
   for person in delivery_parties:
 
     if person == other_parties[0] or person == other_parent_lawyers[0]:
-      continue
+      pass
     else:
       if person.is_represented:
         person.lawyer.name.first
@@ -1454,6 +1454,11 @@ fields:
   - code: |
       x.lawyer.name_fields(person_or_business='unsure')
 ---
+code: |
+  other_parent_lawyers[0].name.first
+  other_parent_lawyers[i].complete = True
+
+---
 id: name of other parent lawyer
 sets:
   - other_parent_lawyers[0].name.first
@@ -1464,7 +1469,10 @@ subquestion: |
 fields:
   - code: |
       other_parent_lawyers[0].name_fields(person_or_business='unsure')
-
+---
+code: |
+  if other_parent_lawyers.number() == 1:
+    other_parent_lawyers.there_is_another = False
 ---
 id: knows delivery method
 generic object: ALIndividual
@@ -2720,16 +2728,16 @@ review:
     show if: sa_involved
   - Edit: other_parent_has_lawyer
     button: |
-      **Did the other parent have a lawyer when the support order was entered?**
+      **Did ${ other_parties[0].name_full()} have a lawyer when the support order was entered?**
       ${ word(yesno(other_parent_has_lawyer)) }    
   - Edit: other_parent_lawyers[0].name.first
     button: |
       **${other_parties[0].name_full()}'s lawyer:**
       ${ other_parent_lawyers[0].name_full() }
     show if: other_parent_has_lawyer == True
-  - Edit: other_parent_lawyers[0].revisit
+  - Edit: other_parent_lawyers.revisit
     button: |
-      **Edit to change ${other_parent_lawyers[0].name_full()}'s delivery information**      
+      **Edit to change ${ other_parent_lawyers[0].name_full() }'s delivery information**
     show if: other_parent_has_lawyer == True
   - Edit: other_parties[0].review_delivery
     button: |
@@ -3349,7 +3357,7 @@ review:
     show if: sa_involved
   - Edit: other_parent_has_lawyer
     button: |
-      **Did the other parent have a lawyer when the support order was entered?**
+      **Did ${ other_parties[0].name_full()} have a lawyer when the support order was entered?**
       ${ word(yesno(other_parent_has_lawyer)) }    
   - Edit: other_parent_lawyers[0].name.first
     button: |
