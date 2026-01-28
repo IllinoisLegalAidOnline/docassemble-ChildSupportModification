@@ -18,6 +18,10 @@ objects:
   - other_parties[i].employer: ALIndividual
   - other_parties[i].lawyer: ALIndividual
   - other_parties[i].jail_delivery_address: ALAddress
+                                          
+  - other_parent_lawyers: ALPeopleList.using(there_are_any=True, complete_attribute='complete')
+  - other_parent_lawyers[i].jail_delivery_address: ALAddress
+
   - children: ALPeopleList.using(object_type=ALIndividual, there_are_any=True, complete_attribute='complete')
   - delivery_parties: ALPeopleList.using(there_are_any=True)
   - delivery_parties[i].lawyer: ALIndividual
@@ -120,9 +124,18 @@ code: |
   #set_agency_name()
 
   delivery_intro
+  build_delivery_parties
+  if other_parent_has_lawyer:
+    other_parent_lawyers.gather()
+  
   for person in delivery_parties:
-    if person.is_represented:
-      person.lawyer.name.first
+
+    if person == other_parties[0] or person == other_parent_lawyers[0]:
+      pass
+    else:
+      if person.is_represented:
+        person.lawyer.name.first
+  
     if person.knows_delivery_method:
       person.email_delivery
       person.delivery_date
@@ -322,9 +335,10 @@ fields:
 ---
 code: |
   other_parties[i].name.first
+  other_parties[0].is_represented = False
   other_parties[i].complete = True
 ---
-code: |
+code: | 
   if other_parties.number() == 1:
     other_parties.there_is_another = False
 ---
@@ -390,6 +404,8 @@ question: |
   Support order date
 subquestion: |
   The date should appear on the support order near the judge's signature.
+
+  **Note:** You may want to wait at least 30 days after the support order was signed before asking the court to change it. A party to a lawsuit can file a Motion to Reconsider within 30 days of the entry of an order. Waiting until after that 30-day period can save you time and resources. To learn more, read ILAO's article about [**Motions to reconsider**](https://www.illinoislegalaid.org/node/175306).
 fields:
   - When was the child support entered by the court?: order_date
     datatype: ThreePartsDate
@@ -449,14 +465,16 @@ fields:
 id: is payor current
 question: |
   % if payor_parent == "Me":
-  Are you up to date on support payments?
+  Are you up to date on child support payments?
   % else:
-  Is ${ other_parties[0].name_full() } up to date on support payments?
+  Is ${ other_parties[0].name_full() } up to date on child support payments?
   % endif
 subquestion: |
   Select **No** if payments have not been made according to the schedule in the child support order.
 
-  If child support is overdue, you can enter the amount below after selecting **No**. Overdue child support is sometimes called "arrears." 
+  If child support is overdue, you can enter the amount below after selecting **No**. Overdue child support is sometimes called "arrears."
+
+  **Note:** If child support is overdue, this program will make the support forms to help make sure the overdue support will be paid. You can use these forms for past child support even if you want future child support payments to end.
 fields:
   - no label: is_support_current
     datatype: yesnoradio
@@ -466,6 +484,19 @@ fields:
     show if:
       variable: is_support_current
       is: False
+  - note: |
+      **Note:** The judge will probably not calculate the amount. You will have to prove what is owed. This can be shown by:
+      
+      * Bank records,
+      * State Disbursement Unit (SDU) ledgers and payment logs,
+      * HFS statements,
+      * Screenshots of money transfers,
+      * Voided checks, or
+      * Any receipts of payment.
+    show if:
+      variable: is_support_current
+      is: False
+      
 ---
 id: change reason
 question: |
@@ -523,6 +554,7 @@ fields:
       You can select this even if the high school graduation date is coming up.
   - High school graduation date: graduation_date
     datatype: ThreePartsDate
+    alMin: ${ order_date.format("yyyy-MM-dd") }
     show if:
       variable: graduation_change
       is: True
@@ -532,6 +564,7 @@ fields:
     datatype: yesnowide
   - Emancipation date: emancipation_date
     datatype: ThreePartsDate
+    alMin: ${ order_date.format("yyyy-MM-dd") }
     alMax: ${ today().format("yyyy-MM-dd") }
     show if:
       variable: emancipation_change
@@ -562,6 +595,8 @@ validation code: |
 id: increase or decrease support
 question: |
   How do you want the child support payment amount to change?
+subquestion: |
+  **Note:** If you have more than one child and you want support to end for some but not all children, be sure to pick either **increase** or **decrease** as appropriate.
 fields:
   - no label: support_amount_change
     input type: radio
@@ -1206,7 +1241,7 @@ continue button field: notice_intro
 question: |
   Let the other parent know about your motion
 subquestion: |
-  You must let ${ other_parties[0].name_full() } know about your motion and when you will present it to the judge. If they have a lawyer, you must let their lawyer know.
+  You must let ${ other_parties[0].name_full() } know about your motion and when you will present it to the judge. If they have a lawyer in the case where child support was ordered and that case is ongoing, you must let their lawyer know.
 
   If the Illinois Department of Healthcare and Family Services (IDHFS) was involved in an earlier administrative support order, they may need to be notified. Also, if the State's Attorney's office was involved in the earlier support order, they must be notified.
 
@@ -1339,18 +1374,35 @@ content: |
   [FILE hearing_information.png, 100%, Part of Notice of Court Date for Motion form]
 
 ---
+#reconsider: True
+#code: |
+#  delivery_parties = ALPeopleList("delivery_parties", elements = get_delivery_parties() )
+
+#
+#  if idhfs_involved:
+#    if sa_involved:
+#      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs + states_attorneys)
+#    else:
+#      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs)  
+#  else:
+#    if sa_involved:
+#      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + states_attorneys)
+#    else:
+#      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties)
+---
 reconsider: True
 code: |
-  if idhfs_involved:
+    temp_list = []
+    temp_list.append(other_parties[0])
+    if other_parent_has_lawyer:
+      temp_list.append(other_parent_lawyers[0])
+    if idhfs_involved:
+      temp_list.append(idhfs[0])
     if sa_involved:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs + states_attorneys)
-    else:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + idhfs)  
-  else:
-    if sa_involved:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties + states_attorneys)
-    else:
-      delivery_parties = ALPeopleList("delivery_parties", elements = other_parties)
+      temp_list.append(states_attorneys[0])
+
+    delivery_parties = ALPeopleList("delivery_parties", elements = temp_list )
+    build_delivery_parties = True
 
 ---
 id: delivery intro
@@ -1379,35 +1431,52 @@ fields:
     - I don't know.: null
 # note: null will be None in review screen
 ---
-# commented out pending additional SME feedback
-#id: does other parent have lawyer
-#question: |
-#  Does ${ other_parties[0].name_full() } have a lawyer listed on the support order?
-#subquestion: |
-#  **Note:** You only need to select **Yes** if:#
-#  * The child support order case is still ongoing, and
-#  * ${ other_parties[0].name_full() } is represented by a lawyer in that case.#
-#  If the child support order case is finished and more than 30 days have passed since the support order date, then you do not need to notify ${ other_parties[0].name_full() }'s lawyer from that case. Select **No** to notify ${ other_parties[0].name_full() } instead of their former lawyer.
-#fields:
-#  - no label: other_parties[0].is_represented
-#    datatype: radio
-#    choices:
-#    - Yes: True
-#    - No: False
-#    - I don't know.: null
-## note: null will be None in review screen
+id: does other parent have lawyer
+question: |
+  Did ${ other_parties[0].name_full() } have a lawyer when the support order was entered by the court?
+subquestion: |
+  You should be able to find the name and address of the lawyer on the support order or other court papers from the case.
+fields:
+  - no label: other_parent_has_lawyer
+    datatype: radio
+    choices:
+    - Yes: True
+    - No: False
+    - I don't know.: null
+# note: null will be None in review screen
 ---
 id: add lawyer
 sets:
   - x.lawyer.name.first
 generic object: ALIndividual
 question: |
-  Who is  ${ x.name_full() }'s lawyer?
+  Who is ${ x.name_full() }'s lawyer?
 subquestion: |
   If the court papers list a law firm instead of a person's name, select **Business or organization** and enter the law firm name. Otherwise, select **Person** and enter the name of the lawyer.
 fields:
   - code: |
       x.lawyer.name_fields(person_or_business='unsure')
+---
+code: |
+  other_parent_lawyers[0].name.first
+  other_parent_lawyers[0].is_represented = False
+  other_parent_lawyers[i].complete = True
+
+---
+id: name of other parent lawyer
+sets:
+  - other_parent_lawyers[0].name.first
+question: |
+  Who was ${ other_parties[0].name_full() }'s lawyer?
+subquestion: |
+  If the court papers list a law firm instead of a person's name, select **Business or organization** and enter the law firm name. Otherwise, select **Person** and enter the name of the lawyer.
+fields:
+  - code: |
+      other_parent_lawyers[0].name_fields(person_or_business='unsure')
+---
+code: |
+  if other_parent_lawyers.number() == 1:
+    other_parent_lawyers.there_is_another = False
 ---
 id: knows delivery method
 generic object: ALIndividual
@@ -1738,12 +1807,19 @@ code: |
   notice_attachment.enabled = True
   notice_single_pdf_bundle.enabled = True
 
-  if support_amount_change == "end" or (children.number() == 1 and (graduation_change or emancipation_change)):
-    child_support_order.enabled = False
-    support_information_sheet.enabled = False
-    income_withholding_instructions.enabled = False
-    income_withholding_for_support.enabled = False
-    income_withholding_letter_to_employer.enabled = False  
+  if support_amount_change == "end":
+    if is_support_current:
+      child_support_order.enabled = False
+      support_information_sheet.enabled = False
+      income_withholding_instructions.enabled = False
+      income_withholding_for_support.enabled = False
+      income_withholding_letter_to_employer.enabled = False  
+    else:
+      child_support_order.enabled = True
+      support_information_sheet.enabled = True
+      income_withholding_instructions.enabled = True
+      income_withholding_for_support.enabled = True
+      income_withholding_letter_to_employer.enabled = True
   else:
     child_support_order.enabled = True
     support_information_sheet.enabled = True
@@ -1855,12 +1931,7 @@ attachment:
       - "for_self": ${True}
       - "for_self_2": ${True}      
       - "document_name": ${ "Motion to Modify Child Support" }       
-      - "delivery_party1_name_full": | 
-          % if delivery_parties[0].is_represented:
-          ${ delivery_parties[0].lawyer.name_full() }, (lawyer for ${ delivery_parties[0].name_full() })
-          % else:
-          ${ delivery_parties[0].name_full() }
-          % endif
+      - "delivery_party1_name_full": ${ delivery_parties[0].name_full() }
       - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) if delivery_parties[0].knows_delivery_method else "" }
       - "delivery_party1_email": ${ delivery_parties[0].delivery_email if delivery_parties[0].knows_delivery_method else '' }
       - "delivery_party1_email_efsp": ${ delivery_parties[0].delivery_efsp_email if delivery_parties[0].knows_delivery_method else '' }
@@ -1943,11 +2014,17 @@ attachment:
       - "e_sign_name__1": ${ users[0].name_full() if e_signature else '' }
       - "for_self": ${True}
       - "document_name": ${ "Motion to Modify Child Support" }       
-      - "delivery_party1_name_full": | 
+      - "delivery_party1_name_full": |
+
+          % if x == other_parent_lawyers[0]:
+          ${ delivery_parties[1].name_full() } (lawyer for ${ delivery_parties[0].name_full() })
+          % else:
+
           % if x.is_represented:
           ${ x.lawyer.name_full() } (lawyer for ${ x.name_full() })
           % else:
           ${ x.name_full() }
+          % endif
           % endif
       - "delivery_party1_mail_address_on_one_line": ${ x.address.on_one_line(bare=True) if x.knows_delivery_method else ""}
       - "delivery_party1_email": ${ x.delivery_email if x.knows_delivery_method else '' }
@@ -2057,12 +2134,7 @@ attachment:
       - "clerk_website": ${ trial_court.website }
         
       - "document_name": ${ "Motion to Modify Child Support" }
-      - "delivery_party1_name_full": | 
-          % if delivery_parties[0].is_represented:
-          ${ delivery_parties[0].lawyer.name_full() }, (lawyer for ${ delivery_parties[0].name_full() })
-          % else:
-          ${ delivery_parties[0].name_full() }
-          % endif
+      - "delivery_party1_name_full": ${ delivery_parties[0].name_full() }
       - "delivery_party1_mail_address_on_one_line": ${ delivery_parties[0].address.on_one_line(bare=True) if delivery_parties[0].knows_delivery_method else ''}
       - "delivery_party1_email": ${ delivery_parties[0].delivery_email if delivery_parties[0].knows_delivery_method else '' }
       - "delivery_party1_email_efsp": ${ delivery_parties[0].delivery_efsp_email if delivery_parties[0].knows_delivery_method else '' }
@@ -2313,7 +2385,8 @@ attachment:
   variable name: income_withholding_instructions[i]
   name: income_withholding_instructions
   filename: income_withholding_instructions
-  pdf template file: income_withholding_instructions.pdf  
+  pdf template file: income_withholding_instructions.pdf
+  editable: False
 
 ---
 attachment:
@@ -2394,13 +2467,10 @@ review:
     button: |
       **Your role in the child support order case:**
       ${ party_label.capitalize() }
-  - Edit: other_parties.revisit
+  - Edit: other_parties[0].name.first
     button: |
-      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
+      **The other parent's name:**
+      ${other_parties[0].name_full()}
   - Edit: 
       - trial_court_index
       - recompute:
@@ -2661,14 +2731,22 @@ review:
     button: |
       **Edit to change ${ states_attorneys[0].name.first }'s delivery information**
     show if: sa_involved
-    
-  - Edit: other_parties.revisit
+  - Edit: other_parent_has_lawyer
     button: |
-      **The other parent: (Edit to change name, lawyer, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
+      **Did ${ other_parties[0].name_full()} have a lawyer when the support order was entered?**
+      ${ word(yesno(other_parent_has_lawyer)) }    
+  - Edit: other_parent_lawyers[0].name.first
+    button: |
+      **${other_parties[0].name_full()}'s lawyer:**
+      ${ other_parent_lawyers[0].name_full() }
+    show if: other_parent_has_lawyer == True
+  - Edit: other_parent_lawyers.revisit
+    button: |
+      **Edit to change ${ other_parent_lawyers[0].name_full() }'s delivery information**
+    show if: other_parent_has_lawyer == True
+  - Edit: other_parties[0].review_delivery
+    button: |
+      **Edit to change ${ other_parties[0].name_full()}'s delivery information**      
   
   - note: |
       <h4>About you</h4>   
@@ -2779,13 +2857,10 @@ review:
     button: |
       **Your role in the child support order case:**
       ${ party_label.capitalize() }
-  - Edit: other_parties.revisit
+  - Edit: other_parties[0].name.first
     button: |
-      **The other parent: (Edit to change name, lawyer, address, and delivery info)**
-
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
+      **The other parent's name:**
+      ${other_parties[0].name_full()}
   - Edit: 
       - trial_court_index
       - recompute:
@@ -2836,7 +2911,7 @@ generic object: ALIndividual
 question: |
   Edit ${ x.name_full() }'s delivery information
 subquestion: |  
-  If you don't see lawyer, address, or delivery information, then it might not be entered yet. Continue the program to answer all the questions.
+  If you don't see lawyer or delivery information, then it might not be entered yet. Continue the program to answer all the questions.
 review: 
   - Edit: x.name.first
     button: |
@@ -2851,19 +2926,12 @@ review:
       % else:
       ${ word(yesno(x.is_represented)) }
       % endif
+    show if: x != other_parties[0] and x != other_parent_lawyers[0]
   - Edit: x.lawyer.name.first
     button: |
       **Lawyer name:**
       ${ x.lawyer.name_full() }
     show if: x.is_represented
-  - Edit: x.address.address
-    button: |
-      % if x.is_represented == True:
-      **${ x.lawyer.name_full() }'s address:**
-      % else:
-      **${ x.name_full() }'s address:**
-      % endif
-      ${ x.address.on_one_line(bare=True) }
   - Edit: x.knows_delivery_method
     button: |
       **Do you know how you will deliver your forms to them?**
@@ -2947,7 +3015,7 @@ rows: other_parties
 columns:
   - Name: |
       row_item.name_full() if defined("row_item.name.first") else ""
-  - Lawyer, address, and delivery info: |
+  - Delivery info: |
       action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
 delete buttons: True
 confirm: True
@@ -2987,6 +3055,26 @@ columns:
       action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
 delete buttons: True
 confirm: True
+---
+id: other parent lawyer review screen
+continue button field: other_parent_lawyers.revisit
+section: Notice and delivery
+question: |
+  Edit ${ other_parent_lawyers[0].name_full() }'s delivery information
+subquestion: |
+  ${ other_parent_lawyers.table }
+---
+table: other_parent_lawyers.table
+rows: other_parent_lawyers
+columns:
+  - Name: |
+      row_item.name_full() if defined("row_item.name.first") else ""
+  - Delivery info: |
+      action_button_html(url_action(row_item.attr_name("review_delivery")), label="Edit", icon="pencil-alt")
+delete buttons: True
+confirm: True
+
+
 
 ---
 id: child support review screen
@@ -3196,7 +3284,7 @@ review:
     show if: other_parties[0].emp_status == "Yes" and other_parties[0].knows_emp
   
 ---
-id: delivery info review screen
+id: notice and delivery review screen
 section: Notice and delivery
 event: section_delivery
 question: |
@@ -3254,7 +3342,7 @@ review:
     button: |
       **Was IDHFS involved in an earlier adminsitrative child support order?**
       ${ word(yesno(idhfs_involved)) }
-  - Edit: idhfs.revisit
+  - Edit: idhfs[0].revisit
     button: |
       **Edit to change IDHFS delivery information**
     show if: idhfs_involved
@@ -3271,15 +3359,24 @@ review:
   - Edit: states_attorneys.revisit
     button: |
       **Edit to change ${ states_attorneys[0].name.first }'s delivery information**
-    show if: sa_involved    
-  - Edit: other_parties.revisit
+    show if: sa_involved
+  - Edit: other_parent_has_lawyer
     button: |
-      **The other parent: (Edit to change name, lawyer, and delivery info)**
+      **Did ${ other_parties[0].name_full()} have a lawyer when the support order was entered?**
+      ${ word(yesno(other_parent_has_lawyer)) }    
+  - Edit: other_parent_lawyers[0].name.first
+    button: |
+      **${other_parties[0].name_full()}'s lawyer:**
+      ${ other_parent_lawyers[0].name_full() }
+    show if: other_parent_has_lawyer == True
+  - Edit: other_parent_lawyers.revisit
+    button: |
+      **Edit to change ${ other_parent_lawyers[0].name_full() }'s delivery information**
+    show if: other_parent_has_lawyer == True
 
-      % for my_var in other_parties:
-        * ${ my_var.name_full() }
-      % endfor
-      
+  - Edit: other_parties[0].review_delivery
+    button: |
+      **Edit to change ${ other_parties[0].name_full()}'s delivery information**      
 ---
 id: about you review screen
 section: About you
