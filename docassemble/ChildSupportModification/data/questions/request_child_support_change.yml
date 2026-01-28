@@ -465,14 +465,16 @@ fields:
 id: is payor current
 question: |
   % if payor_parent == "Me":
-  Are you up to date on support payments?
+  Are you up to date on child support payments?
   % else:
-  Is ${ other_parties[0].name_full() } up to date on support payments?
+  Is ${ other_parties[0].name_full() } up to date on child support payments?
   % endif
 subquestion: |
   Select **No** if payments have not been made according to the schedule in the child support order.
 
-  If child support is overdue, you can enter the amount below after selecting **No**. Overdue child support is sometimes called "arrears." 
+  If child support is overdue, you can enter the amount below after selecting **No**. Overdue child support is sometimes called "arrears."
+
+  **Note:** If child support is overdue, this program will make the support forms to help make sure the overdue support will be paid. You can use these forms for past child support even if you want future child support payments to end.
 fields:
   - no label: is_support_current
     datatype: yesnoradio
@@ -552,6 +554,7 @@ fields:
       You can select this even if the high school graduation date is coming up.
   - High school graduation date: graduation_date
     datatype: ThreePartsDate
+    alMin: ${ order_date.format("yyyy-MM-dd") }
     show if:
       variable: graduation_change
       is: True
@@ -561,6 +564,7 @@ fields:
     datatype: yesnowide
   - Emancipation date: emancipation_date
     datatype: ThreePartsDate
+    alMin: ${ order_date.format("yyyy-MM-dd") }
     alMax: ${ today().format("yyyy-MM-dd") }
     show if:
       variable: emancipation_change
@@ -591,6 +595,8 @@ validation code: |
 id: increase or decrease support
 question: |
   How do you want the child support payment amount to change?
+subquestion: |
+  **Note:** If you have more than one child and you want support to end for some but not all children, be sure to pick either **increase** or **decrease** as appropriate.
 fields:
   - no label: support_amount_change
     input type: radio
@@ -1801,7 +1807,7 @@ code: |
   notice_attachment.enabled = True
   notice_single_pdf_bundle.enabled = True
 
-  if support_amount_change == "end" or (children.number() == 1 and (graduation_change or emancipation_change)):
+  if support_amount_change == "end":
     if is_support_current:
       child_support_order.enabled = False
       support_information_sheet.enabled = False
@@ -2379,7 +2385,8 @@ attachment:
   variable name: income_withholding_instructions[i]
   name: income_withholding_instructions
   filename: income_withholding_instructions
-  pdf template file: income_withholding_instructions.pdf  
+  pdf template file: income_withholding_instructions.pdf
+  editable: False
 
 ---
 attachment:
